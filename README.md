@@ -7,17 +7,31 @@ center or at the mouse cursor. The original Blizzard bar stays visible; Action B
 
 ## Use
 
-Open Options > AddOns > Radial Bars, or `/radialbars`:
+Open Options > AddOns > Radial Bars, or `/radialbars`. Every setting below is
+saved per bar.
+
+**Behavior**
 
 - **Action bar:** which bar (2-8) the wheel shows.
-- **Hotkey behavior** (per bar):
+- **Hotkey behavior:**
   - **Toggle:** press the hotkey to open, click a slot to use it. The wheel
     closes after use; the hotkey again or Esc closes it.
-  - **Hold:** hold the hotkey, move the cursor over a slot, release to use it.
-- **Open at** (per bar): screen center, or centered on the mouse cursor. The
-  wheel stays on screen near edges.
-- **Hotkey** (per bar): click, then press a key with optional Alt, Ctrl, Shift.
-  It overrides any game binding on that key while Radial Bars is loaded.
+  - **Hold:** hold the hotkey and push the mouse toward a slot; it highlights
+    and its name shows in the center. Release to use it. Releasing inside the
+    center dead zone uses nothing.
+- **Open at:** screen center, the mouse cursor, or a fixed position. For a
+  fixed position, click **Preview wheel** and drag the wheel into place.
+- **Hotkey:** click, then press a key with optional Alt, Ctrl, Shift. It
+  overrides any game binding on that key while Radial Bars is loaded.
+
+**Appearance**
+
+- **Icon shape:** Square (default, Blizzard action button border), Circle, or
+  Radial slice (pie wedges; the whole wedge is clickable).
+- **Sliders:** buttons shown (first 4-12 of the bar), icon size, spacing
+  (distance from center), margin (backdrop around icons), center size (dead
+  zone and slice hub), slice gap, backdrop opacity (0 hides it), icon opacity.
+- **Preview wheel** shows changes live.
 
 Works in combat. Settings changed in combat apply when combat ends.
 
@@ -39,7 +53,8 @@ client restart.
 | `Core.lua` | Saved settings, bar-to-slot map, combat-safe apply |
 | `Wheel.lua` | Secure wheel, slot buttons, hotkey trigger, visuals |
 | `Settings.lua` | Options page and key capture |
+| `Media/Wedge*.tga` | Slice textures for 4-12 slots, generated |
 
 ## Planned
 
-Dragging the wheel to a fixed spot, more than one wheel at a time.
+More than one wheel at a time.

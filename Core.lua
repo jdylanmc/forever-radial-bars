@@ -16,7 +16,20 @@ ns.BARS = {
 }
 
 ns.MODES = { toggle = true, hold = true }
-ns.POSITIONS = { center = true, cursor = true }
+ns.POSITIONS = { center = true, cursor = true, fixed = true }
+ns.SHAPES = { square = true, circle = true, slice = true }
+
+-- Numeric per-bar settings: default, min, max.
+ns.LIMITS = {
+	count = { 12, 4, 12 },
+	radius = { 110, 60, 250 },
+	iconSize = { 44, 24, 72 },
+	margin = { 12, 0, 48 },
+	hubSize = { 0.35, 0, 0.8 },
+	gap = { 2, 0, 8 },
+	backdropAlpha = { 0.55, 0, 1 },
+	iconAlpha = { 1, 0.1, 1 },
+}
 
 function ns.SlotFor(bar, index)
 	return (ns.BARS[bar].page - 1) * ns.NUM_SLOTS + index
@@ -32,6 +45,15 @@ function ns.GetBarConfig(bar)
 	if not ns.POSITIONS[config.position] then
 		config.position = "center"
 	end
+	if not ns.SHAPES[config.shape] then
+		config.shape = "square"
+	end
+	for key, limit in pairs(ns.LIMITS) do
+		local value = tonumber(config[key]) or limit[1]
+		config[key] = math.min(limit[3], math.max(limit[2], value))
+	end
+	config.x = tonumber(config.x) or 0
+	config.y = tonumber(config.y) or 0
 	return config
 end
 
@@ -63,6 +85,7 @@ local events = CreateFrame("Frame")
 events:RegisterEvent("ADDON_LOADED")
 events:RegisterEvent("PLAYER_LOGIN")
 events:RegisterEvent("PLAYER_REGEN_ENABLED")
+events:RegisterEvent("PLAYER_REGEN_DISABLED")
 events:SetScript("OnEvent", function(_, event, arg1)
 	if event == "ADDON_LOADED" and arg1 == "RadialBars" then
 		InitDB()
@@ -70,5 +93,8 @@ events:SetScript("OnEvent", function(_, event, arg1)
 		ns.ApplyWhenSafe()
 	elseif event == "PLAYER_REGEN_ENABLED" and pendingApply then
 		ns.ApplyWhenSafe()
+	elseif event == "PLAYER_REGEN_DISABLED" then
+		-- Fires just before lockdown, while the preview can still be hidden.
+		ns.Wheel:SetPreview(false)
 	end
 end)

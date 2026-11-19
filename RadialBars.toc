@@ -2,7 +2,7 @@
 ## Title: Radial Bars
 ## Notes: Turns an action bar into a radial wheel opened by a hotkey.
 ## Author: jdylanmc
-## Version: 0.3.0
+## Version: 0.4.0
 ## SavedVariables: RadialBarsDB
 
 Core.lua

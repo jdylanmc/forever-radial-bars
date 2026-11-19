@@ -8,44 +8,24 @@ local MODIFIER_KEYS = {
 	UNKNOWN = true,
 }
 
-local panel = CreateFrame("Frame")
-local widgets = {}
+local RIGHT_LABEL = MinimalSliderWithSteppersMixin.Label.Right
+local COLUMN_WIDTH = 300
 
-local function Label(text, template, anchor, x, y)
-	local label = panel:CreateFontString(nil, "ARTWORK", template or "GameFontNormal")
-	label:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", x or 0, y or -16)
-	label:SetJustifyH("LEFT")
-	label:SetText(text)
-	return label
+local panel = CreateFrame("Frame")
+local widgets = { sliders = {} }
+local refreshing = false
+
+local function Config()
+	return ns.GetBarConfig(ns.db.activeBar)
 end
 
-local function RadioGroup(anchor, options, onSelect)
-	local group = {}
-	local previous
-	for i, option in ipairs(options) do
-		local radio = CreateFrame("CheckButton", nil, panel, "UIRadioButtonTemplate")
-		if previous then
-			radio:SetPoint("TOPLEFT", previous, "BOTTOMLEFT", 0, -4)
-		else
-			radio:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -8)
-		end
-		local text = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
-		text:SetPoint("LEFT", radio, "RIGHT", 4, 0)
-		text:SetText(option.label)
-		radio.value = option.value
-		radio:SetScript("OnClick", function()
-			onSelect(option.value)
-		end)
-		group[i] = radio
-		previous = radio
-	end
-	function group:Select(value)
-		for _, radio in ipairs(self) do
-			radio:SetChecked(radio.value == value)
-		end
-	end
-	group.last = previous
-	return group
+local function Label(text, template, anchor, x, y, point)
+	local label = panel:CreateFontString(nil, "ARTWORK", template or "GameFontNormal")
+	label:SetPoint("TOPLEFT", anchor, point or "BOTTOMLEFT", x or 0, y or -16)
+	label:SetJustifyH("LEFT")
+	label:SetWidth(COLUMN_WIDTH)
+	label:SetText(text)
+	return label
 end
 
 local function ApplyAndRefresh()
@@ -55,48 +35,119 @@ local function ApplyAndRefresh()
 	widgets.Refresh()
 end
 
+-- Radio buttons in rows of `columns`.
+local function RadioGroup(anchor, options, onSelect, columns, columnWidth)
+	columns = columns or 1
+	columnWidth = columnWidth or COLUMN_WIDTH
+	local group = {}
+	for i, option in ipairs(options) do
+		local radio = CreateFrame("CheckButton", nil, panel, "UIRadioButtonTemplate")
+		local row, column = math.floor((i - 1) / columns), (i - 1) % columns
+		radio:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", column * columnWidth, -8 - row * 22)
+		local text = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+		text:SetPoint("LEFT", radio, "RIGHT", 4, 0)
+		text:SetText(option.label)
+		radio.value = option.value
+		radio:SetScript("OnClick", function()
+			onSelect(option.value)
+		end)
+		group[i] = radio
+		if column == 0 then
+			group.last = radio
+		end
+	end
+	function group:Select(value)
+		for _, radio in ipairs(self) do
+			radio:SetChecked(radio.value == value)
+		end
+	end
+	return group
+end
+
+local function Percent(value)
+	return math.floor(value * 100 + 0.5) .. "%"
+end
+
+local function Whole(value)
+	return tostring(math.floor(value + 0.5))
+end
+
+local function Slider(anchor, text, key, step, formatter)
+	local limit = ns.LIMITS[key]
+	local label = Label(text, "GameFontHighlight", anchor, 0, -12)
+	local slider = CreateFrame("Frame", nil, panel, "MinimalSliderWithSteppersTemplate")
+	slider:SetWidth(COLUMN_WIDTH - 60)
+	slider:SetPoint("TOPLEFT", label, "BOTTOMLEFT", 0, -2)
+	slider:Init(limit[1], limit[2], limit[3], math.floor((limit[3] - limit[2]) / step + 0.5), {
+		[RIGHT_LABEL] = formatter or Whole,
+	})
+	slider:RegisterCallback(MinimalSliderWithSteppersMixin.Event.OnValueChanged, function(_, value)
+		if refreshing then
+			return
+		end
+		Config()[key] = math.floor(value / step + 0.5) * step
+		ApplyAndRefresh()
+	end, slider)
+	slider.key = key
+	widgets.sliders[#widgets.sliders + 1] = slider
+	return slider
+end
+
+-- Left column: behavior.
+
 local header = panel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
 header:SetPoint("TOPLEFT", 16, -16)
 header:SetText("Radial Bars")
 
-local intro = Label("Turns one action bar into a radial wheel opened by a hotkey. The original bar stays visible.", "GameFontHighlightSmall", header, 0, -8)
+local intro = Label("Turns one action bar into a radial wheel opened by a hotkey. The original bar stays visible. Action Bar 1 is not supported.", "GameFontHighlightSmall", header, 0, -8)
+intro:SetWidth(COLUMN_WIDTH * 2)
 
 local barLabel = Label("Action bar", nil, intro)
 local barOptions = {}
 for bar = 2, 8 do
-	barOptions[#barOptions + 1] = { value = bar, label = ns.BARS[bar].name }
+	barOptions[#barOptions + 1] = { value = bar, label = "Bar " .. bar }
 end
 widgets.bar = RadioGroup(barLabel, barOptions, function(bar)
 	ns.db.activeBar = bar
 	ApplyAndRefresh()
-end)
+end, 4, 72)
 
-local barNote = Label("Action Bar 1 is not supported.", "GameFontDisableSmall", widgets.bar.last, 0, -6)
-
-local modeLabel = Label("Hotkey behavior", nil, barNote)
+local modeLabel = Label("Hotkey behavior", nil, widgets.bar.last, 0, -14)
 widgets.mode = RadioGroup(modeLabel, {
-	{ value = "toggle", label = "Toggle: press to open, click a slot to use it" },
-	{ value = "hold", label = "Hold: hold to open, release over a slot to use it" },
+	{ value = "toggle", label = "Toggle: press to open, click a slot" },
+	{ value = "hold", label = "Hold: point toward a slot, release to use" },
 }, function(mode)
-	ns.GetBarConfig(ns.db.activeBar).mode = mode
+	Config().mode = mode
 	ApplyAndRefresh()
 end)
 
-local positionLabel = Label("Open at", nil, widgets.mode.last)
+local positionLabel = Label("Open at", nil, widgets.mode.last, 0, -14)
 widgets.position = RadioGroup(positionLabel, {
 	{ value = "center", label = "Screen center" },
 	{ value = "cursor", label = "Mouse cursor" },
+	{ value = "fixed", label = "Fixed position (drag in preview)" },
 }, function(position)
-	ns.GetBarConfig(ns.db.activeBar).position = position
+	Config().position = position
 	ApplyAndRefresh()
 end)
 
-local keyLabel = Label("Hotkey", nil, widgets.position.last)
+local previewButton = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+previewButton:SetSize(140, 24)
+previewButton:SetPoint("TOPLEFT", widgets.position.last, "BOTTOMLEFT", 0, -10)
+previewButton:SetScript("OnClick", function()
+	if InCombatLockdown() then
+		widgets.status:SetText("Leave combat to preview.")
+		return
+	end
+	ns.Wheel:SetPreview(not ns.Wheel:IsPreviewing())
+end)
+widgets.preview = previewButton
+
+local keyLabel = Label("Hotkey", nil, previewButton, 0, -14)
 
 local keyButton = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
 keyButton:SetSize(180, 24)
 keyButton:SetPoint("TOPLEFT", keyLabel, "BOTTOMLEFT", 0, -8)
-widgets.key = keyButton
 
 local clearButton = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
 clearButton:SetSize(80, 24)
@@ -104,9 +155,36 @@ clearButton:SetPoint("LEFT", keyButton, "RIGHT", 8, 0)
 clearButton:SetText("Clear")
 
 local keyNote = Label("", "GameFontHighlightSmall", keyButton, 0, -6)
-widgets.keyNote = keyNote
+widgets.status = Label("", "GameFontRedSmall", keyNote, 0, -8)
 
-widgets.status = Label("", "GameFontRedSmall", keyNote, 0, -12)
+-- Right column: appearance.
+
+local appearance = Label("Appearance", nil, intro, COLUMN_WIDTH + 20, -16)
+
+widgets.shape = RadioGroup(appearance, {
+	{ value = "square", label = "Square" },
+	{ value = "circle", label = "Circle" },
+	{ value = "slice", label = "Radial slice" },
+}, function(shape)
+	Config().shape = shape
+	ApplyAndRefresh()
+end, 3, 95)
+
+local previous = widgets.shape.last
+for _, spec in ipairs({
+	{ "Buttons", "count", 1 },
+	{ "Icon size", "iconSize", 2 },
+	{ "Spacing (distance from center)", "radius", 5 },
+	{ "Margin (backdrop around icons)", "margin", 2 },
+	{ "Center size (dead zone)", "hubSize", 0.05, Percent },
+	{ "Slice gap", "gap", 1 },
+	{ "Backdrop opacity", "backdropAlpha", 0.05, Percent },
+	{ "Icon opacity", "iconAlpha", 0.05, Percent },
+}) do
+	previous = Slider(previous, spec[1], spec[2], spec[3], spec[4])
+end
+
+-- Key capture.
 
 local capturing = false
 
@@ -136,11 +214,10 @@ keyButton:SetScript("OnKeyDown", function(self, key)
 		return
 	end
 	if key ~= "ESCAPE" then
-		local binding = (IsAltKeyDown() and "ALT-" or "")
+		Config().key = (IsAltKeyDown() and "ALT-" or "")
 			.. (IsControlKeyDown() and "CTRL-" or "")
 			.. (IsShiftKeyDown() and "SHIFT-" or "")
 			.. key
-		ns.GetBarConfig(ns.db.activeBar).key = binding
 		ns.ApplyWhenSafe()
 	end
 	StopCapture()
@@ -153,7 +230,7 @@ keyButton:SetScript("OnHide", function()
 end)
 
 clearButton:SetScript("OnClick", function()
-	ns.GetBarConfig(ns.db.activeBar).key = nil
+	Config().key = nil
 	ApplyAndRefresh()
 end)
 
@@ -161,11 +238,18 @@ function widgets.Refresh()
 	if not ns.db then
 		return
 	end
-	local bar = ns.db.activeBar
-	local config = ns.GetBarConfig(bar)
-	widgets.bar:Select(bar)
+	refreshing = true
+	local config = Config()
+	widgets.bar:Select(ns.db.activeBar)
 	widgets.mode:Select(config.mode)
 	widgets.position:Select(config.position)
+	widgets.shape:Select(config.shape)
+	for _, slider in ipairs(widgets.sliders) do
+		slider:SetValue(config[slider.key])
+	end
+	refreshing = false
+
+	previewButton:SetText(ns.Wheel:IsPreviewing() and "Hide preview" or "Preview wheel")
 	if not capturing then
 		keyButton:SetText(config.key and GetBindingText(config.key) or "Not bound")
 	end
@@ -182,7 +266,12 @@ function widgets.Refresh()
 	end
 end
 
+ns.OnPreviewChanged = widgets.Refresh
+
 panel:SetScript("OnShow", widgets.Refresh)
+panel:SetScript("OnHide", function()
+	ns.Wheel:SetPreview(false)
+end)
 
 local category = Settings.RegisterCanvasLayoutCategory(panel, "Radial Bars")
 Settings.RegisterAddOnCategory(category)
