@@ -4,6 +4,8 @@ local CIRCLE_MASK = "Interface\\CharacterFrame\\TempPortraitAlphaMask"
 local SQUARE_SWIPE = "Interface\\Buttons\\WHITE8X8"
 local EMPTY_SLOT = "Interface\\Buttons\\UI-EmptySlot-Disabled"
 local WEDGE_PATH = "Interface\\AddOns\\RadialBars\\Media\\Wedge"
+local BLANK_CURSOR = "Interface\\AddOns\\RadialBars\\Media\\Blank"
+local POINTER = "Interface\\AddOns\\RadialBars\\Media\\Pointer"
 local SENSOR_SIZE = 4096
 local MIN_DEAD_ZONE = 12
 
@@ -91,6 +93,20 @@ local hub = wheel:CreateTexture(nil, "ARTWORK", nil, 3)
 hub:SetPoint("CENTER")
 hub:SetColorTexture(0.03, 0.03, 0.04, 1)
 CreateCircleMask(wheel, hub)
+
+local cancelHighlight = wheel:CreateTexture(nil, "ARTWORK", nil, 4)
+cancelHighlight:SetPoint("CENTER")
+cancelHighlight:SetColorTexture(1, 0.25, 0.2, 0.3)
+cancelHighlight:SetBlendMode("ADD")
+CreateCircleMask(wheel, cancelHighlight)
+cancelHighlight:Hide()
+
+-- Shows the pointing direction, since Hold mode can hide the cursor.
+local pointer = wheel:CreateTexture(nil, "OVERLAY", nil, 1)
+pointer:SetTexture(POINTER)
+pointer:SetSize(16, 16)
+pointer:SetVertexColor(1, 0.82, 0.3, 0.9)
+pointer:Hide()
 
 local title = wheel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 title:SetPoint("CENTER")
@@ -210,6 +226,7 @@ local function ActionDescription(action)
 end
 
 -- Insecure mirror of PICK_DIRECTION, for highlight and the center label.
+-- Returns the slot index (nil in the dead zone) and the pointing angle.
 local function DirectionIndex()
 	local centerX, centerY = wheel:GetCenter()
 	if not centerX then
@@ -222,17 +239,23 @@ local function DirectionIndex()
 	if dx * dx + dy * dy < dead * dead then
 		return nil
 	end
+	local angle = math.atan2(dy, dx)
 	local count = wheel:GetAttribute("rb-count")
 	local step = 360 / count
-	local offset = (90 - math.deg(math.atan2(dy, dx))) % 360
-	return math.floor((offset + step / 2) / step) % count + 1
+	local offset = (90 - math.deg(angle)) % 360
+	return math.floor((offset + step / 2) / step) % count + 1, angle
 end
 
-local selected
-local function SetSelected(index)
-	if index == selected then
+local CANCEL_TEXT = CANCEL or "Cancel"
+
+local selected, cancelHot
+local function SetSelected(index, hot)
+	hot = (not index and hot) and true or false
+	if index == selected and hot == cancelHot then
 		return
 	end
+	cancelHot = hot
+	cancelHighlight:SetShown(hot)
 	if selected then
 		wedgeHighlights[selected]:Hide()
 		slots[selected].selectSquare:Hide()
@@ -256,8 +279,12 @@ local function SetSelected(index)
 		description:SetText(text or "")
 		description:SetShown(text and true or false)
 	else
-		title:SetText(wheel.barName)
-		title:SetTextColor(1, 0.82, 0)
+		title:SetText(CANCEL_TEXT)
+		if hot then
+			title:SetTextColor(1, 0.45, 0.4)
+		else
+			title:SetTextColor(0.6, 0.6, 0.6)
+		end
 		description:Hide()
 	end
 	title:ClearAllPoints()
@@ -276,17 +303,48 @@ local function HoveredSlot()
 	end
 end
 
+local cursorHidden = false
+
 wheel:SetScript("OnUpdate", function()
-	local index
-	if wheel:GetAttribute("rb-mode") == "hold" then
-		index = DirectionIndex()
+	local hold = wheel:GetAttribute("rb-mode") == "hold"
+	local index, angle
+	if hold then
+		index, angle = DirectionIndex()
 	elseif wheel:GetAttribute("rb-shape") == "slice" then
-		index = selector:IsMouseOver() and DirectionIndex() or nil
+		if selector:IsMouseOver() then
+			index = DirectionIndex()
+		end
 	else
 		index = HoveredSlot()
 	end
-	SetSelected(index)
+	SetSelected(index, hold or ns.cancelButton:IsMouseOver())
+
+	if angle then
+		local distance = wheel:GetAttribute("rb-dead") + 10
+		pointer:ClearAllPoints()
+		pointer:SetPoint("CENTER", wheel, "CENTER", distance * math.cos(angle), distance * math.sin(angle))
+		pointer:SetRotation(angle - math.pi / 2)
+		pointer:Show()
+	else
+		pointer:Hide()
+	end
+
+	-- The game restores its cursor as the mouse moves, so reapply each frame.
+	if hold and wheel.hideCursor and not Wheel:IsPreviewing() then
+		SetCursor(BLANK_CURSOR)
+		cursorHidden = true
+	end
 end)
+
+-- Center "Cancel": clicking it closes the wheel. In Hold mode, releasing with
+-- the cursor in the center does the same (PICK_DIRECTION returns nil there).
+local cancelButton = CreateFrame("Button", "RadialBarsCancel", wheel, "SecureHandlerClickTemplate")
+cancelButton:SetPoint("CENTER")
+cancelButton:SetFrameLevel(wheel:GetFrameLevel() + 15)
+cancelButton:RegisterForClicks("AnyUp")
+SecureHandlerSetFrameRef(cancelButton, "wheel", wheel)
+cancelButton:SetAttribute("_onclick", [[ self:GetFrameRef("wheel"):Hide() ]])
+ns.cancelButton = cancelButton
 
 -- Escape closes the wheel; bound only while the wheel is open.
 local close = CreateFrame("Button", "RadialBarsClose", UIParent, "SecureHandlerClickTemplate")
@@ -431,9 +489,10 @@ local function Layout(config)
 	background:SetAlpha(config.backdropAlpha)
 	background:SetShown(not slice and config.backdropAlpha > 0)
 
-	hub:SetSize(hubRadius * 2, hubRadius * 2)
+	hub:SetSize(deadZone * 2, deadZone * 2)
 	hub:SetAlpha(math.max(config.backdropAlpha, 0.6))
-	hub:SetShown(slice and hubRadius > 0)
+	cancelHighlight:SetSize(deadZone * 2, deadZone * 2)
+	ns.cancelButton:SetSize(deadZone * 2, deadZone * 2)
 
 	for index = 1, ns.NUM_SLOTS do
 		local shown = slice and index <= count
@@ -497,6 +556,7 @@ local function Layout(config)
 	title:SetWidth(centerWidth)
 	description:SetWidth(centerWidth)
 	wheel.showDescription = config.showDescription and centerWidth >= MIN_DESCRIPTION_WIDTH
+	wheel.hideCursor = config.hideCursor
 end
 
 -- Out of combat only (see ns.ApplyWhenSafe).
@@ -513,10 +573,7 @@ function Wheel:Apply()
 	wheel:SetAttribute("rb-position", config.position)
 	wheel:SetAttribute("rb-x", config.x)
 	wheel:SetAttribute("rb-y", config.y)
-	wheel.barName = ns.BARS[bar].name
-	selected = nil
-	title:SetText(wheel.barName)
-	title:SetTextColor(1, 0.82, 0)
+	SetSelected(nil, false)
 
 	ClearOverrideBindings(trigger)
 	if config.key then
@@ -561,7 +618,12 @@ wheel:HookScript("OnShow", function()
 end)
 
 wheel:HookScript("OnHide", function()
-	SetSelected(nil)
+	SetSelected(nil, false)
+	pointer:Hide()
+	if cursorHidden then
+		cursorHidden = false
+		ResetCursor()
+	end
 end)
 
 wheel:HookScript("OnHide", function()

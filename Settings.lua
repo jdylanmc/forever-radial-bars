@@ -184,18 +184,28 @@ for _, spec in ipairs({
 	previous = Slider(previous, spec[1], spec[2], spec[3], spec[4])
 end
 
-local describe = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
-describe:SetSize(24, 24)
-describe:SetPoint("TOPLEFT", previous, "BOTTOMLEFT", -4, -10)
-local describeText = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
-describeText:SetPoint("LEFT", describe, "RIGHT", 4, 0)
-describeText:SetText("Show description in center")
-local describeNote = Label("Needs a center size large enough to fit text.", "GameFontDisableSmall", describe, 4, -2)
-describe:SetScript("OnClick", function(self)
-	Config().showDescription = self:GetChecked() and true or false
-	ApplyAndRefresh()
-end)
-widgets.describe = describe
+local function Checkbox(anchor, x, y, text, note, key)
+	local check = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
+	check:SetSize(24, 24)
+	check:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", x, y)
+	local label = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+	label:SetPoint("LEFT", check, "RIGHT", 4, 0)
+	label:SetText(text)
+	check.note = Label(note, "GameFontDisableSmall", check, 4, -2)
+	check.key = key
+	check:SetScript("OnClick", function(self)
+		Config()[key] = self:GetChecked() and true or false
+		ApplyAndRefresh()
+	end)
+	widgets.checks[#widgets.checks + 1] = check
+	return check
+end
+
+widgets.checks = {}
+local describe = Checkbox(previous, -4, -10, "Show description in center",
+	"Needs a center size large enough to fit text.", "showDescription")
+Checkbox(describe.note, -4, -6, "Hide cursor in Hold mode",
+	"A pointer shows the direction instead.", "hideCursor")
 
 -- Key capture.
 
@@ -257,7 +267,9 @@ function widgets.Refresh()
 	widgets.mode:Select(config.mode)
 	widgets.position:Select(config.position)
 	widgets.shape:Select(config.shape)
-	widgets.describe:SetChecked(config.showDescription)
+	for _, check in ipairs(widgets.checks) do
+		check:SetChecked(config[check.key])
+	end
 	for _, slider in ipairs(widgets.sliders) do
 		slider:SetValue(config[slider.key])
 	end

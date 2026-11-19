@@ -55,6 +55,9 @@ function ns.GetBarConfig(bar)
 	if config.showDescription == nil then
 		config.showDescription = true
 	end
+	if config.hideCursor == nil then
+		config.hideCursor = true
+	end
 	config.x = tonumber(config.x) or 0
 	config.y = tonumber(config.y) or 0
 	return config

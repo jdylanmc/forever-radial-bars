@@ -15,10 +15,11 @@ saved per bar.
 - **Action bar:** which bar (2-8) the wheel shows.
 - **Hotkey behavior:**
   - **Toggle:** press the hotkey to open, click a slot to use it. The wheel
-    closes after use; the hotkey again or Esc closes it.
+    closes after use; the center **Cancel**, the hotkey again, or Esc closes it.
   - **Hold:** hold the hotkey and push the mouse toward a slot; it highlights
-    and its name shows in the center. Release to use it. Releasing inside the
-    center dead zone uses nothing.
+    and its name shows in the center. Release to use it. Releasing in the
+    center **Cancel** zone uses nothing. The cursor is hidden while held and a
+    pointer shows the direction (option: **Hide cursor in Hold mode**).
 - **Open at:** screen center, the mouse cursor, or a fixed position. For a
   fixed position, click **Preview wheel** and drag the wheel into place.
 - **Hotkey:** click, then press a key with optional Alt, Ctrl, Shift. It
@@ -56,7 +57,7 @@ client restart.
 | `Core.lua` | Saved settings, bar-to-slot map, combat-safe apply |
 | `Wheel.lua` | Secure wheel, slot buttons, hotkey trigger, visuals |
 | `Settings.lua` | Options page and key capture |
-| `Media/Wedge*.tga` | Slice textures for 4-12 slots, generated |
+| `Media/*.tga` | Generated textures: slices for 4-12 slots, pointer, blank cursor |
 
 ## Planned
 
