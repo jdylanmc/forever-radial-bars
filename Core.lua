@@ -52,6 +52,9 @@ function ns.GetBarConfig(bar)
 		local value = tonumber(config[key]) or limit[1]
 		config[key] = math.min(limit[3], math.max(limit[2], value))
 	end
+	if config.showDescription == nil then
+		config.showDescription = true
+	end
 	config.x = tonumber(config.x) or 0
 	config.y = tonumber(config.y) or 0
 	return config

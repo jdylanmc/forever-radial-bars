@@ -184,6 +184,19 @@ for _, spec in ipairs({
 	previous = Slider(previous, spec[1], spec[2], spec[3], spec[4])
 end
 
+local describe = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
+describe:SetSize(24, 24)
+describe:SetPoint("TOPLEFT", previous, "BOTTOMLEFT", -4, -10)
+local describeText = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+describeText:SetPoint("LEFT", describe, "RIGHT", 4, 0)
+describeText:SetText("Show description in center")
+local describeNote = Label("Needs a center size large enough to fit text.", "GameFontDisableSmall", describe, 4, -2)
+describe:SetScript("OnClick", function(self)
+	Config().showDescription = self:GetChecked() and true or false
+	ApplyAndRefresh()
+end)
+widgets.describe = describe
+
 -- Key capture.
 
 local capturing = false
@@ -244,6 +257,7 @@ function widgets.Refresh()
 	widgets.mode:Select(config.mode)
 	widgets.position:Select(config.position)
 	widgets.shape:Select(config.shape)
+	widgets.describe:SetChecked(config.showDescription)
 	for _, slider in ipairs(widgets.sliders) do
 		slider:SetValue(config[slider.key])
 	end

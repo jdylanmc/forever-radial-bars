@@ -96,6 +96,15 @@ local title = wheel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 title:SetPoint("CENTER")
 title:SetWordWrap(true)
 
+local description = wheel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+description:SetPoint("TOP", title, "BOTTOM", 0, -4)
+description:SetWordWrap(true)
+description:SetMaxLines(5)
+description:Hide()
+
+-- Room the center needs before a description fits.
+local MIN_DESCRIPTION_WIDTH = 100
+
 local slots = {}
 
 for index = 1, ns.NUM_SLOTS do
@@ -182,6 +191,24 @@ local function ActionName(action)
 	return ok and name or nil
 end
 
+-- Tooltip text can be secret in restricted content; on any failure, skip it.
+local function ActionDescription(action)
+	local ok, text = pcall(function()
+		local data = C_TooltipInfo.GetAction(action)
+		local lines = data and data.lines
+		if not lines then
+			return nil
+		end
+		for i = #lines, 2, -1 do
+			local line = lines[i].leftText
+			if line and line ~= "" then
+				return line
+			end
+		end
+	end)
+	return ok and text or nil
+end
+
 -- Insecure mirror of PICK_DIRECTION, for highlight and the center label.
 local function DirectionIndex()
 	local centerX, centerY = wheel:GetCenter()
@@ -222,20 +249,41 @@ local function SetSelected(index)
 			slots[index].selectSquare:Show()
 		end
 		local action = slots[index]:GetAttribute("action")
-		local name = C_ActionBar.HasAction(action) and ActionName(action)
-		title:SetText(name or EMPTY)
+		local hasAction = C_ActionBar.HasAction(action)
+		title:SetText(hasAction and ActionName(action) or EMPTY)
 		title:SetTextColor(1, 1, 1)
+		local text = hasAction and wheel.showDescription and ActionDescription(action)
+		description:SetText(text or "")
+		description:SetShown(text and true or false)
 	else
 		title:SetText(wheel.barName)
 		title:SetTextColor(1, 0.82, 0)
+		description:Hide()
+	end
+	title:ClearAllPoints()
+	if description:IsShown() then
+		title:SetPoint("BOTTOM", wheel, "CENTER", 0, 6)
+	else
+		title:SetPoint("CENTER")
+	end
+end
+
+local function HoveredSlot()
+	for index, button in ipairs(slots) do
+		if button:IsShown() and button:IsMouseOver() then
+			return index
+		end
 	end
 end
 
 wheel:SetScript("OnUpdate", function()
 	local index
-	if wheel:GetAttribute("rb-mode") == "hold"
-		or (wheel:GetAttribute("rb-shape") == "slice" and selector:IsMouseOver()) then
+	if wheel:GetAttribute("rb-mode") == "hold" then
 		index = DirectionIndex()
+	elseif wheel:GetAttribute("rb-shape") == "slice" then
+		index = selector:IsMouseOver() and DirectionIndex() or nil
+	else
+		index = HoveredSlot()
 	end
 	SetSelected(index)
 end)
@@ -445,7 +493,10 @@ local function Layout(config)
 	wheel:SetAttribute("rb-count", count)
 	wheel:SetAttribute("rb-shape", shape)
 	wheel:SetAttribute("rb-dead", deadZone)
-	title:SetWidth(math.max(deadZone * 2 - 8, 60))
+	local centerWidth = math.max(deadZone * 2 - 8, 60)
+	title:SetWidth(centerWidth)
+	description:SetWidth(centerWidth)
+	wheel.showDescription = config.showDescription and centerWidth >= MIN_DESCRIPTION_WIDTH
 end
 
 -- Out of combat only (see ns.ApplyWhenSafe).

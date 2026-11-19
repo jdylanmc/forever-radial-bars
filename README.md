@@ -31,6 +31,9 @@ saved per bar.
 - **Sliders:** buttons shown (first 4-12 of the bar), icon size, spacing
   (distance from center), margin (backdrop around icons), center size (dead
   zone and slice hub), slice gap, backdrop opacity (0 hides it), icon opacity.
+- **Show description in center:** the selected ability's name always shows in
+  the center; its description shows too when the center is at least about 100
+  pixels wide (raise **Center size** or **Spacing**).
 - **Preview wheel** shows changes live.
 
 Works in combat. Settings changed in combat apply when combat ends.
