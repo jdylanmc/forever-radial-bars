@@ -20,6 +20,7 @@ local wheel = CreateFrame("Frame", "RadialBarsWheel", UIParent, "SecureHandlerSt
 wheel:SetSize((RADIUS + BUTTON_SIZE) * 2, (RADIUS + BUTTON_SIZE) * 2)
 wheel:SetPoint("CENTER")
 wheel:SetFrameStrata("DIALOG")
+wheel:SetClampedToScreen(true)
 wheel:Hide()
 
 local background = wheel:CreateTexture(nil, "BACKGROUND")
@@ -76,7 +77,14 @@ close:RegisterForClicks("AnyUp")
 SecureHandlerSetFrameRef(close, "wheel", wheel)
 close:SetAttribute("_onclick", [[ self:GetFrameRef("wheel"):Hide() ]])
 
+-- Position on every open, so "cursor" follows the mouse even in combat.
 wheel:SetAttribute("_onshow", [[
+	self:ClearAllPoints()
+	if self:GetAttribute("rb-position") == "cursor" then
+		self:SetPoint("CENTER", "$cursor")
+	else
+		self:SetPoint("CENTER")
+	end
 	self:SetBindingClick(true, "ESCAPE", "RadialBarsClose")
 ]])
 wheel:SetAttribute("_onhide", [[
@@ -171,6 +179,7 @@ function Wheel:Apply()
 		button:SetAttribute("action", ns.SlotFor(bar, index))
 	end
 	wheel:SetAttribute("rb-mode", config.mode)
+	wheel:SetAttribute("rb-position", config.position)
 	title:SetText(ns.BARS[bar].name)
 
 	ClearOverrideBindings(trigger)

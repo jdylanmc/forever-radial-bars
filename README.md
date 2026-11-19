@@ -2,8 +2,8 @@
 
 Radial action bars for World of Warcraft: Forever.
 
-Turns one action bar (2-8) into a circular wheel at screen center, opened by a
-hotkey. The original Blizzard bar stays visible; Action Bar 1 is not touched.
+Turns one action bar (2-8) into a circular wheel, opened by a hotkey at screen
+center or at the mouse cursor. The original Blizzard bar stays visible; Action Bar 1 is not touched.
 
 ## Use
 
@@ -14,6 +14,8 @@ Open Options > AddOns > Radial Bars, or `/radialbars`:
   - **Toggle:** press the hotkey to open, click a slot to use it. The wheel
     closes after use; the hotkey again or Esc closes it.
   - **Hold:** hold the hotkey, move the cursor over a slot, release to use it.
+- **Open at** (per bar): screen center, or centered on the mouse cursor. The
+  wheel stays on screen near edges.
 - **Hotkey** (per bar): click, then press a key with optional Alt, Ctrl, Shift.
   It overrides any game binding on that key while Radial Bars is loaded.
 
@@ -40,5 +42,4 @@ client restart.
 
 ## Planned
 
-Moving the wheel, opening at the cursor, more than one wheel at a time.
-Per-bar settings already store a `position` field for this.
+Dragging the wheel to a fixed spot, more than one wheel at a time.

@@ -82,7 +82,16 @@ widgets.mode = RadioGroup(modeLabel, {
 	ApplyAndRefresh()
 end)
 
-local keyLabel = Label("Hotkey", nil, widgets.mode.last)
+local positionLabel = Label("Open at", nil, widgets.mode.last)
+widgets.position = RadioGroup(positionLabel, {
+	{ value = "center", label = "Screen center" },
+	{ value = "cursor", label = "Mouse cursor" },
+}, function(position)
+	ns.GetBarConfig(ns.db.activeBar).position = position
+	ApplyAndRefresh()
+end)
+
+local keyLabel = Label("Hotkey", nil, widgets.position.last)
 
 local keyButton = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
 keyButton:SetSize(180, 24)
@@ -156,6 +165,7 @@ function widgets.Refresh()
 	local config = ns.GetBarConfig(bar)
 	widgets.bar:Select(bar)
 	widgets.mode:Select(config.mode)
+	widgets.position:Select(config.position)
 	if not capturing then
 		keyButton:SetText(config.key and GetBindingText(config.key) or "Not bound")
 	end

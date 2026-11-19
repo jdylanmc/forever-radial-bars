@@ -16,6 +16,7 @@ ns.BARS = {
 }
 
 ns.MODES = { toggle = true, hold = true }
+ns.POSITIONS = { center = true, cursor = true }
 
 function ns.SlotFor(bar, index)
 	return (ns.BARS[bar].page - 1) * ns.NUM_SLOTS + index
@@ -28,7 +29,9 @@ function ns.GetBarConfig(bar)
 	if not ns.MODES[config.mode] then
 		config.mode = "toggle"
 	end
-	config.position = config.position or "center"
+	if not ns.POSITIONS[config.position] then
+		config.position = "center"
+	end
 	return config
 end
 
