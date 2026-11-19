@@ -1,0 +1,7 @@
+## Interface: 16001
+## Title: Radial Bars
+## Notes: Radial action bars for WoW: Forever.
+## Author: jdylanmc
+## Version: 0.1.0
+
+RadialBars.lua
