@@ -1,7 +1,10 @@
 ## Interface: 16001
 ## Title: Radial Bars
-## Notes: Radial action bars for WoW: Forever.
+## Notes: Turns an action bar into a radial wheel opened by a hotkey.
 ## Author: jdylanmc
-## Version: 0.1.0
+## Version: 0.2.0
+## SavedVariables: RadialBarsDB
 
-RadialBars.lua
+Core.lua
+Wheel.lua
+Settings.lua
