@@ -74,3 +74,53 @@ change has not been tested in game.
 - Comments only where the reason is not obvious from the code.
 - Commit messages: Conventional Commits (`feat:`, `fix:`, `chore:`, `ci:`,
   `docs:`, `test:`).
+
+## Agent delivery policy
+
+### Authority
+
+- Humans own product and architecture decisions, scope, and exceptions.
+- The main development agent is an orchestrator only: clarify decisions,
+  scope and prioritize work, dispatch bounded assignments, reconcile
+  dependencies and ownership, and accept verified results.
+- The orchestrator may independently inspect live state and verify results,
+  but must delegate all code, tests, fixes, documentation implementation,
+  delivery pull request creation, review remediation, and shepherding.
+- The [README](README.md) and existing upstream documentation remain the
+  authority for addon usage, development, build, and release procedures.
+
+### Delegated delivery
+
+- Give each writing worker an owned, isolated worktree, explicit scope,
+  acceptance criteria, validation requirements, and a return owner.
+  Never share mutable checkouts or implement in the default checkout.
+- Workers own their assigned implementation and focused validation. Delivery
+  workers own publication, keeping their branch and checks current, review
+  responses, and scope completion. Delivery requires independent review.
+- Keep one delivery/shepherd owner per pull request. Bounded workers return
+  evidence to that owner; they do not assume publication or shepherding duties.
+- Bounded workers report actual changes, validation, remaining duties, and
+  blockers to the delivery/shepherd owner; delivery workers report them to the
+  orchestrator. A sent report is not an accepted handoff; acknowledge custody
+  before transferring responsibility, without overlapping writers or monitors.
+- Preserve unrelated work and other owners' scopes. Clean up only finished,
+  owned resources after verifying work is preserved.
+
+### Merge and identity boundaries
+
+- PR Sniper runs separately with merge authority. Respect human authority and
+  Sniper's existing scope; do not approve, merge, enable auto-merge on its behalf,
+  or spawn a replacement Sniper.
+- Claim communication, acceptance, or handoff only when observed.
+- Use the configured personal Git and GitHub identity for this repository.
+  Do not switch active accounts, change global credentials, or fall back to a
+  work identity; escalate missing identity setup.
+- Keep machine details, account data, and transient runtime state out of
+  permanent documentation.
+
+### Versioning
+
+- Feature changes increment minor.
+- Bug fixes increment revision (patch in `major.minor.patch`).
+- Only the human/operator may increment major; agents and automation must not
+  autonomously choose a major bump.
