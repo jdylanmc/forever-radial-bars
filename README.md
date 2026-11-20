@@ -41,6 +41,9 @@ saved per bar.
 
 Works in combat. Settings changed in combat apply when combat ends.
 
+Options > AddOns > Radial Bars > **Changelog** lists what changed in each
+version.
+
 ## Develop
 
 Symlink this repository into the Forever AddOns folder (macOS):
@@ -54,13 +57,16 @@ The link must be named `RadialBars` to match `RadialBars.toc`. `/reload` in
 game picks up new files and changes; renaming or deleting the TOC needs a
 client restart.
 
-| File | Role |
-| --- | --- |
-| `Core.lua` | Saved settings, bar-to-slot map, combat-safe apply |
-| `Wheel.lua` | Secure wheel, slot buttons, hotkey trigger, visuals |
-| `Settings.lua` | Options page and key capture |
-| `Media/*.tga` | Textures: slices for 4-12 slots, pointer, blank cursor, addon-list icon |
-| `art/` | Icon source art and the 400x400 CurseForge avatar (not packaged) |
+See [AGENTS.md](AGENTS.md) for the file layout, client rules (combat
+lockdown, secret values), and checks.
+
+```sh
+npm ci
+luacheck .
+busted
+npm run test:scripts
+npm run changelog:check
+```
 
 ## Planned
 
@@ -68,12 +74,25 @@ More than one wheel at a time.
 
 ## Release
 
-Pushing an annotated tag (for example `git tag -a v0.6.0 -m "v0.6.0"` then
-`git push --tags`) runs [BigWigsMods/packager](https://github.com/BigWigsMods/packager):
-it zips the addon as `RadialBars`, publishes a GitHub release, and uploads to
-CurseForge when the `CF_API_TOKEN` secret and `## X-Curse-Project-ID` are set.
-Tags without `alpha` or `beta` become Release files. The TOC version comes from
-the tag.
+Releases are automated with [Changesets](https://github.com/changesets/changesets):
+
+1. Each pull request adds a changeset (`npx changeset`) describing the change
+   for players. CI requires one.
+2. Merging to `main` opens or updates a **Version Packages** pull request that
+   bumps the version and writes `CHANGELOG.md` and `Changelog.lua`.
+3. Merging that pull request tags `v<version>` and runs the
+   [BigWigs packager](https://github.com/BigWigsMods/packager), which publishes
+   a GitHub release and uploads to CurseForge.
+
+If packaging fails after the tag is pushed, re-run the **Release** workflow on
+`main`. It packages an existing `v<version>` tag that has no GitHub release.
+It also retries a release without an uploaded, nonempty ZIP asset; release
+metadata alone does not mean packaging finished. The packager creates or
+updates the GitHub release before uploading its ZIP. A re-run may upload the
+same version to CurseForge again.
+
+CurseForge upload needs the `CF_API_TOKEN` repository secret and
+`## X-Curse-Project-ID` in `RadialBars.toc`.
 
 ## License
 

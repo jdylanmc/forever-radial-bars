@@ -1,22 +1,93 @@
-name: Package and release
+name: Release
 
+# On main: open or update the "Version Packages" pull request while changesets
+# are pending. Once it merges, tag v<version> and package the release.
+# A manually pushed v* tag packages that tag directly.
 on:
   push:
-    tags:
-      - '**'
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   release:
     runs-on: ubuntu-latest
-    env:
-      CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
-      GH_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - uses: BigWigsMods/packager@v2
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+        if: github.ref_type == 'branch'
+
+      - name: Version pull request
+        id: changesets
+        if: github.ref_type == 'branch'
+        uses: changesets/action@v2
+        with:
+          version-script: npm run version
+          commit-message: 'chore: version packages'
+          pr-title: 'chore: version packages'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Release metadata can exist before its ZIP upload finishes.
+      - name: Tag new version
+        id: tag
+        if: github.ref_type == 'tag' || steps.changesets.outputs['has-changesets'] == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            version="$GITHUB_REF_NAME"
+          else
+            version="v$(node -p "require('./package.json').version")"
+          fi
+          if [ "$GITHUB_REF_TYPE" = tag ] || git ls-remote --exit-code --tags origin "refs/tags/$version" >/dev/null; then
+            if out=$(gh api "repos/{owner}/{repo}/releases/tags/$version" 2>&1); then
+              complete=$(printf '%s' "$out" | node -e '
+                const { assets } = JSON.parse(require("node:fs").readFileSync(0, "utf8"));
+                console.log(assets.some(asset => asset.state === "uploaded" &&
+                  asset.size > 0 && /\.zip$/i.test(asset.name)));
+              ')
+              if [ "$complete" = true ]; then
+                echo "$version already has an uploaded ZIP."
+                exit 0
+              fi
+            elif [[ "$out" != *"(HTTP 404)"* ]]; then
+              echo "$out" >&2
+              exit 1
+            fi
+            if [ "$GITHUB_REF_TYPE" = branch ]; then
+              echo "$version is tagged but has no complete ZIP; packaging the tag."
+              git fetch --force origin "refs/tags/$version:refs/tags/$version"
+              git checkout --detach "$version"
+            fi
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git tag -a "$version" -m "$version"
+            git push origin "$version"
+          fi
+          echo "package=true" >> "$GITHUB_OUTPUT"
+
+      # Tags pushed with GITHUB_TOKEN do not start new workflows, so package here.
+      - name: Package and upload
+        if: steps.tag.outputs.package == 'true'
+        uses: BigWigsMods/packager@v2
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          GH_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}

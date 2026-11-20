@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  lua:
+    name: Lint and test (Lua)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: leafo/gh-actions-lua@v13
+        with:
+          luaVersion: luajit-2.1
+
+      - uses: leafo/gh-actions-luarocks@v6
+
+      - name: Install tools
+        run: |
+          luarocks install busted
+          luarocks install luacheck
+
+      - name: Lint
+        run: luacheck .
+
+      - name: Unit tests
+        run: busted
+
+  tooling:
+    name: Changelog and changesets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Changelog script tests
+        run: npm run test:scripts
+
+      - name: Changelog.lua matches CHANGELOG.md
+        run: npm run changelog:check
+
+      - name: Pull request has a changeset
+        if: github.event_name == 'pull_request' && github.head_ref != 'changeset-release/main'
+        run: npx changeset status --since=origin/${{ github.base_ref }}

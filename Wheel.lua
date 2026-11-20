@@ -51,6 +51,8 @@ local PICK_DIRECTION = [[
 	end
 ]]
 
+ns.PICK_DIRECTION = PICK_DIRECTION
+
 -- Protected header: shown and hidden from secure snippets so it works in combat.
 local wheel = CreateFrame("Frame", "RadialBarsWheel", UIParent, "SecureHandlerStateTemplate, SecureHandlerShowHideTemplate")
 wheel:SetPoint("CENTER")
@@ -235,15 +237,10 @@ local function DirectionIndex()
 	local scale = wheel:GetEffectiveScale()
 	local cursorX, cursorY = GetCursorPosition()
 	local dx, dy = cursorX / scale - centerX, cursorY / scale - centerY
-	local dead = wheel:GetAttribute("rb-dead")
-	if dx * dx + dy * dy < dead * dead then
-		return nil
+	local index = ns.DirectionIndex(dx, dy, wheel:GetAttribute("rb-dead"), wheel:GetAttribute("rb-count"))
+	if index then
+		return index, math.atan2(dy, dx)
 	end
-	local angle = math.atan2(dy, dx)
-	local count = wheel:GetAttribute("rb-count")
-	local step = 360 / count
-	local offset = (90 - math.deg(angle)) % 360
-	return math.floor((offset + step / 2) / step) % count + 1, angle
 end
 
 local CANCEL_TEXT = CANCEL or "Cancel"

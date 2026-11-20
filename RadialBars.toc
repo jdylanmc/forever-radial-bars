@@ -5,8 +5,10 @@
 ## Author: jdylanmc
 ## Version: @project-version@
 ## X-License: MIT
+## X-Curse-Project-ID: 1817882
 ## SavedVariables: RadialBarsDB
 
 Core.lua
+Changelog.lua
 Wheel.lua
 Settings.lua

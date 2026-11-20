@@ -1,0 +1,23 @@
+{
+  "name": "forever-radial-bars",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Radial action bar wheel for World of Warcraft: Forever",
+  "license": "MIT",
+  "repository": "github:jdylanmc/forever-radial-bars",
+  "scripts": {
+    "changeset": "changeset",
+    "version": "changeset version && node scripts/build-changelog.mjs",
+    "changelog:build": "node scripts/build-changelog.mjs",
+    "changelog:check": "node scripts/build-changelog.mjs --check",
+    "test": "busted",
+    "test:scripts": "node --test scripts/*.test.mjs",
+    "lint": "luacheck ."
+  },
+  "devDependencies": {
+    "@changesets/cli": "^3.0.3"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
