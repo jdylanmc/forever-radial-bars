@@ -115,3 +115,10 @@ change has not been tested in game.
   work identity; escalate missing identity setup.
 - Keep machine details, account data, and transient runtime state out of
   permanent documentation.
+
+## Versioning
+
+- Feature changes increment minor.
+- Bug fixes increment revision (patch in `major.minor.patch`).
+- Only the human/operator may increment major; agents and automation must not
+  autonomously choose a major bump.
