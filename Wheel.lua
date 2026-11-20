@@ -4,6 +4,7 @@ local CIRCLE_MASK = "Interface\\CharacterFrame\\TempPortraitAlphaMask"
 local SQUARE_SWIPE = "Interface\\Buttons\\WHITE8X8"
 local EMPTY_SLOT = "Interface\\Buttons\\UI-EmptySlot-Disabled"
 local WEDGE_PATH = "Interface\\AddOns\\RadialBars\\Media\\Wedge"
+local SLICE_HUB_MASK = "Interface\\AddOns\\RadialBars\\Media\\SliceHubMask"
 local BLANK_CURSOR = "Interface\\AddOns\\RadialBars\\Media\\Blank"
 local POINTER = "Interface\\AddOns\\RadialBars\\Media\\Pointer"
 local SENSOR_SIZE = 4096
@@ -134,6 +135,18 @@ for index = 1, ns.NUM_SLOTS do
 	button.icon:SetAllPoints()
 	button.iconMask = CreateCircleMask(button, button.icon)
 
+	-- Wheel-level artwork stays below the wedge highlights, gaps, and hub.
+	button.sliceIcon = wheel:CreateTexture(nil, "ARTWORK")
+	button.sliceIcon:Hide()
+	button.sliceMask = wheel:CreateMaskTexture()
+	button.sliceMask:SetPoint("CENTER")
+	button.sliceIcon:AddMaskTexture(button.sliceMask)
+	button.sliceHubMask = wheel:CreateMaskTexture()
+	button.sliceHubMask:SetPoint("CENTER")
+	button.sliceHubMask:SetTexture(SLICE_HUB_MASK, "CLAMP", "CLAMP")
+	button.sliceIcon:AddMaskTexture(button.sliceHubMask)
+	button.actionIcon = button.icon
+
 	button.border = button:CreateTexture(nil, "OVERLAY")
 	button.border:SetAtlas("UI-HUD-ActionBar-IconFrame")
 
@@ -184,12 +197,24 @@ end
 -- by angle, so the full wedge is clickable. Slot buttons become display only.
 local selector = CreateFrame("Button", "RadialBarsSelector", wheel, "SecureActionButtonTemplate")
 selector:SetAllPoints()
-selector:SetFrameLevel(wheel:GetFrameLevel() + 10)
+selector:SetFrameLevel(wheel:GetFrameLevel() + 16)
 selector:RegisterForClicks("AnyUp")
 selector:SetAttribute("type", "action")
 selector:Hide()
-SecureHandlerWrapScript(selector, "OnClick", wheel, PICK_DIRECTION .. [[
+SecureHandlerWrapScript(selector, "OnClick", wheel, [[
+	local x, y = owner:GetFrameRef("sensor"):GetMousePosition()
+	if not x then
+		return false
+	end
+	local size = owner:GetAttribute("rb-sensor")
+	local dx, dy = (x - 0.5) * size, (y - 0.5) * size
+	local outer = owner:GetAttribute("rb-outer")
+	if dx * dx + dy * dy > outer * outer then
+		return false
+	end
+]] .. PICK_DIRECTION .. [[
 	if not index then
+		owner:Hide()
 		return false
 	end
 	self:SetAttribute("action", owner:GetFrameRef("slot" .. index):GetAttribute("action"))
@@ -229,7 +254,7 @@ end
 
 -- Insecure mirror of PICK_DIRECTION, for highlight and the center label.
 -- Returns the slot index (nil in the dead zone) and the pointing angle.
-local function DirectionIndex()
+local function DirectionIndex(bounded)
 	local centerX, centerY = wheel:GetCenter()
 	if not centerX then
 		return nil
@@ -237,7 +262,15 @@ local function DirectionIndex()
 	local scale = wheel:GetEffectiveScale()
 	local cursorX, cursorY = GetCursorPosition()
 	local dx, dy = cursorX / scale - centerX, cursorY / scale - centerY
-	local index = ns.DirectionIndex(dx, dy, wheel:GetAttribute("rb-dead"), wheel:GetAttribute("rb-count"))
+	local dead = wheel:GetAttribute("rb-dead")
+	if dx * dx + dy * dy < dead * dead then
+		return nil, nil, true
+	end
+	local outer = wheel:GetAttribute("rb-outer")
+	if bounded and dx * dx + dy * dy > outer * outer then
+		return nil
+	end
+	local index = ns.DirectionIndex(dx, dy, dead, wheel:GetAttribute("rb-count"))
 	if index then
 		return index, math.atan2(dy, dx)
 	end
@@ -304,17 +337,19 @@ local cursorHidden = false
 
 wheel:SetScript("OnUpdate", function()
 	local hold = wheel:GetAttribute("rb-mode") == "hold"
-	local index, angle
+	local slice = wheel:GetAttribute("rb-shape") == "slice"
+	local index, angle, inDeadZone
 	if hold then
 		index, angle = DirectionIndex()
-	elseif wheel:GetAttribute("rb-shape") == "slice" then
+	elseif slice then
 		if selector:IsMouseOver() then
-			index = DirectionIndex()
+			index, angle, inDeadZone = DirectionIndex(true)
+			angle = nil
 		end
 	else
 		index = HoveredSlot()
 	end
-	SetSelected(index, hold or ns.cancelButton:IsMouseOver())
+	SetSelected(index, hold or inDeadZone or (not slice and ns.cancelButton:IsMouseOver()))
 
 	if angle then
 		local distance = wheel:GetAttribute("rb-dead") + 10
@@ -444,23 +479,24 @@ end)
 local previewing = false
 
 local function UpdateSlot(button)
+	local icon = button.actionIcon
 	local action = button:GetAttribute("action")
 	if not action or not C_ActionBar.HasAction(action) then
-		button.icon:SetTexture(EMPTY_SLOT)
-		button.icon:SetVertexColor(1, 1, 1, 0.4)
+		icon:SetTexture(EMPTY_SLOT)
+		icon:SetVertexColor(1, 1, 1, 0.4)
 		button.cooldown:Clear()
 		button.count:SetText("")
 		return
 	end
 
-	button.icon:SetTexture(C_ActionBar.GetActionTexture(action))
+	icon:SetTexture(C_ActionBar.GetActionTexture(action))
 	local usable, lackingResources = C_ActionBar.IsUsableAction(action)
 	if usable then
-		button.icon:SetVertexColor(1, 1, 1, 1)
+		icon:SetVertexColor(1, 1, 1, 1)
 	elseif lackingResources then
-		button.icon:SetVertexColor(0.5, 0.5, 1, 1)
+		icon:SetVertexColor(0.5, 0.5, 1, 1)
 	else
-		button.icon:SetVertexColor(0.4, 0.4, 0.4, 1)
+		icon:SetVertexColor(0.4, 0.4, 0.4, 1)
 	end
 
 	-- Cooldown and count can be secret values in restricted content; pass them
@@ -480,6 +516,27 @@ function Wheel:Refresh()
 			UpdateSlot(button)
 		end
 	end
+end
+
+-- Fit upright artwork to the sector's bounding square, not to an action button.
+local function SliceBounds(angle, halfStep, inner, outer)
+	local left, right, bottom, top = math.huge, -math.huge, math.huge, -math.huge
+	local function Include(degrees, radius)
+		local radians = math.rad(degrees)
+		local x, y = radius * math.cos(radians), radius * math.sin(radians)
+		left, right = math.min(left, x), math.max(right, x)
+		bottom, top = math.min(bottom, y), math.max(top, y)
+	end
+	Include(angle - halfStep, inner)
+	Include(angle + halfStep, inner)
+	Include(angle - halfStep, outer)
+	Include(angle + halfStep, outer)
+	for cardinal = 0, 270, 90 do
+		if math.abs((cardinal - angle + 180) % 360 - 180) <= halfStep then
+			Include(cardinal, outer)
+		end
+	end
+	return (left + right) / 2, (bottom + top) / 2, math.max(right - left, top - bottom)
 end
 
 local function Layout(config)
@@ -529,13 +586,34 @@ local function Layout(config)
 	for index, button in ipairs(slots) do
 		local shown = index <= count
 		button:SetShown(shown)
+		button.sliceIcon:SetShown(shown and slice)
+		button.icon:SetShown(not slice)
+		button.actionIcon = slice and button.sliceIcon or button.icon
 		if shown then
-			local angle = math.rad(SlotAngle(index, count))
+			local degrees = SlotAngle(index, count)
+			local angle = math.rad(degrees)
 			button:ClearAllPoints()
 			button:SetPoint("CENTER", wheel, "CENTER", radius * math.cos(angle), radius * math.sin(angle))
 			button:SetSize(iconSize, iconSize)
 			button:SetAlpha(config.iconAlpha)
 			button:EnableMouse(not slice)
+
+			if slice then
+				local x, y, size = SliceBounds(degrees, step / 2, deadZone, outer)
+				button.sliceIcon:ClearAllPoints()
+				button.sliceIcon:SetPoint("CENTER", wheel, "CENTER", x, y)
+				button.sliceIcon:SetSize(size * config.sliceIconZoom, size * config.sliceIconZoom)
+				button.sliceIcon:SetAlpha(config.iconAlpha)
+				-- The mask remains wheel-sized and stationary while the artwork zooms.
+				button.sliceMask:SetTexture(WEDGE_PATH .. count, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+				button.sliceMask:SetSize(outer * 2, outer * 2)
+				button.sliceMask:SetRotation(math.rad(degrees - 90))
+				-- The inverse disk has a UV radius of 1/4; clamped white edges
+				-- let its transparent center track any configured dead-zone size.
+				local span = outer / (2 * deadZone)
+				button.sliceHubMask:SetSize(outer * 2, outer * 2)
+				button.sliceHubMask:SetTexCoord(0.5 - span / 2, 0.5 + span / 2, 0.5 - span / 2, 0.5 + span / 2)
+			end
 
 			SetMasked(button.icon, button.iconMask, round)
 			if round then
@@ -560,6 +638,7 @@ local function Layout(config)
 	wheel:SetAttribute("rb-count", count)
 	wheel:SetAttribute("rb-shape", shape)
 	wheel:SetAttribute("rb-dead", deadZone)
+	wheel:SetAttribute("rb-outer", outer)
 	local centerWidth = math.max(deadZone * 2 - 8, 60)
 	title:SetWidth(centerWidth)
 	description:SetWidth(centerWidth)
