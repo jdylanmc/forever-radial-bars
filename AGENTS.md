@@ -74,9 +74,10 @@ change has not been tested in game.
 - Comments only where the reason is not obvious from the code.
 - Commit messages: Conventional Commits (`feat:`, `fix:`, `chore:`, `ci:`,
   `docs:`, `test:`).
+
 ## Agent delivery policy
 
-## Authority
+### Authority
 
 - Humans own product and architecture decisions, scope, and exceptions.
 - The main development agent is an orchestrator only: clarify decisions,
@@ -88,7 +89,7 @@ change has not been tested in game.
 - The [README](README.md) and existing upstream documentation remain the
   authority for addon usage, development, build, and release procedures.
 
-## Delegated delivery
+### Delegated delivery
 
 - Give each writing worker an owned, isolated worktree, explicit scope,
   acceptance criteria, validation requirements, and a return owner.
@@ -98,13 +99,14 @@ change has not been tested in game.
   responses, and scope completion. Delivery requires independent review.
 - Keep one delivery/shepherd owner per pull request. Bounded workers return
   evidence to that owner; they do not assume publication or shepherding duties.
-- Report actual changes, validation, remaining duties, and blockers to the
-  coordinator. A sent report is not an accepted handoff; acknowledge custody
+- Bounded workers report actual changes, validation, remaining duties, and
+  blockers to the delivery/shepherd owner; delivery workers report them to the
+  orchestrator. A sent report is not an accepted handoff; acknowledge custody
   before transferring responsibility, without overlapping writers or monitors.
 - Preserve unrelated work and other owners' scopes. Clean up only finished,
   owned resources after verifying work is preserved.
 
-## Merge and identity boundaries
+### Merge and identity boundaries
 
 - PR Sniper runs separately with merge authority. Respect human authority and
   Sniper's existing scope; do not approve, merge, enable auto-merge on its behalf,
@@ -116,7 +118,7 @@ change has not been tested in game.
 - Keep machine details, account data, and transient runtime state out of
   permanent documentation.
 
-## Versioning
+### Versioning
 
 - Feature changes increment minor.
 - Bug fixes increment revision (patch in `major.minor.patch`).
