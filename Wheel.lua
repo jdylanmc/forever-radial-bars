@@ -338,13 +338,12 @@ local cursorHidden = false
 wheel:SetScript("OnUpdate", function()
 	local hold = wheel:GetAttribute("rb-mode") == "hold"
 	local slice = wheel:GetAttribute("rb-shape") == "slice"
-	local index, angle, inDeadZone
+	local index, angle, inDeadZone, _
 	if hold then
 		index, angle = DirectionIndex()
 	elseif slice then
 		if selector:IsMouseOver() then
-			index, angle, inDeadZone = DirectionIndex(true)
-			angle = nil
+			index, _, inDeadZone = DirectionIndex(true)
 		end
 	else
 		index = HoveredSlot()
