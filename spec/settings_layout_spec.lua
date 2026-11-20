@@ -122,7 +122,7 @@ describe("settings layout", function()
 	before_each(function()
 		wow.Reset()
 		regions, geometry = TrackLayout()
-		ns = wow.Load("Core.lua", "Changelog.lua")
+		ns = wow.Load("Core.lua", "Changelog.lua", "Visuals.lua", "SettingsPreview.lua")
 		applied, previewing = 0, false
 		ns.Wheel = {
 			Apply = function() applied = applied + 1 end,
@@ -173,12 +173,34 @@ describe("settings layout", function()
 				assert.is_true(finalNote:GetBottom() >= scroll:GetBottom(), "final note is below the viewport")
 				assert.is_true(finalNote:GetTop() <= scroll:GetTop(), "final note is above the viewport")
 				for _, region in ipairs(regions) do
-					if region ~= scroll and DescendsFrom(region, scroll) then
+					if region ~= scroll and DescendsFrom(region, scroll) and region:GetEffectiveScale() == 1 then
 						assert.is_true(region:GetLeft() >= scroll:GetLeft(), "content escapes the left edge")
 						assert.is_true(region:GetRight() <= scroll:GetRight(), "content escapes the right edge")
 					end
 				end
 			end
+		end
+	end)
+
+	it("lays out the embedded preview in Placement and preserves scroll reachability after it grows", function()
+		Resize(310, 320)
+		local preview, placement, layout
+		for _, region in ipairs(regions) do
+			local text = geometry[region].text
+			if text == "Placement" then placement = geometry[region].parent end
+			if text == "Wheel layout" then layout = geometry[region].parent end
+			if rawget(region, "Refresh") and rawget(region, "Layout") then preview = region end
+		end
+		assert.is_not_nil(preview)
+		assert.equal(placement, geometry[preview].parent)
+		assert.near(scroll:GetWidth() - 32, preview:GetWidth(), 0.001)
+		assert.near(preview:GetWidth(), preview:GetHeight(), 0.001)
+		assert.is_true(layout:GetTop() < preview:GetBottom())
+		for _, width in ipairs({ 320, 960, 400 }) do
+			Resize(310, width)
+			assert.near(math.min(320, scroll:GetWidth() - 32), preview:GetHeight(), 0.001)
+			scroll:SetVerticalScroll(scroll:GetVerticalScrollRange())
+			assert.is_true(finalNote:GetBottom() >= scroll:GetBottom())
 		end
 	end)
 
@@ -296,6 +318,31 @@ describe("settings layout", function()
 		controls[2].scripts.OnClick()
 		assert.equal(6, geometry[controls.count].value)
 		assert.is_false(geometry[controls.hideCursor].checked)
+	end)
+
+	it("refreshes embedded artwork through real bar and slider handlers while protected apply is deferred", function()
+		Resize(310, 320)
+		_G.C_ActionBar.HasAction = function() return true end
+		local controls, slot = {}, nil
+		for _, region in ipairs(regions) do
+			local key = rawget(region, "key") or rawget(region, "value")
+			if key then controls[key] = region end
+			if rawget(region, "sliceIcon") and not slot then slot = region end
+		end
+		wow.inCombat = true
+		controls[3].scripts.OnClick()
+		controls.slice.scripts.OnClick()
+		assert.equal("ActionTexture49", slot.sliceIcon.calls.SetTexture[1])
+		local size = slot.sliceIcon.calls.SetSize[1]
+		geometry[controls.sliceIconZoom].callback(controls.sliceIconZoom, 2)
+		assert.near(size * 2 / 1.15, slot.sliceIcon.calls.SetSize[1], 0.00001)
+		assert.same({ 288, 288 }, slot.sliceMask.calls.SetSize)
+		assert.equal(0, applied)
+		assert.equal(2, ns.GetBarConfig(3).sliceIconZoom)
+		assert.equal(1.15, ns.GetBarConfig(2).sliceIconZoom)
+		wow.inCombat = false
+		wow.Fire("PLAYER_REGEN_ENABLED")
+		assert.equal(1, applied)
 	end)
 
 	it("retains keyboard capture, Clear, and the floating preview lifecycle", function()

@@ -26,7 +26,7 @@ describe("slice icon zoom settings", function()
 			end
 			return frame
 		end
-		ns = wow.Load("Core.lua")
+		ns = wow.Load("Core.lua", "Visuals.lua", "SettingsPreview.lua")
 		wow.Fire("ADDON_LOADED", "RadialBars")
 		ns.Wheel = {
 			Apply = function() applied = applied + 1 end,
