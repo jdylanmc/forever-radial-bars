@@ -39,6 +39,9 @@ wheels and hotkeys; only one opens at a time. Bar 1 uses fixed action slots
   Hide invalidates hold arming; key-down latches survive until release to reject
   stale releases and auto-repeat. Copy settings must preserve destination key
   and actions. Never use `SetBinding`/`SaveBindings` to restore base bindings.
+  Restricted calls scrub framehandle varargs: pass scalar bar IDs and resolve
+  preinstalled frame refs inside the coordinator. Framehandle-valued ownership
+  attributes are supported; they are not equivalent to varargs.
 - **Verify APIs** against the Forever UI source
   (`Gethe/wow-ui-source`, branch `forever`) before using them. Retail and
   Classic Era docs do not always apply.

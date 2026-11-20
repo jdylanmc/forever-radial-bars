@@ -13,7 +13,8 @@ local Wheels = { instances = {} }
 ns.Wheel = Wheels
 local coordinator = CreateFrame("Frame", nil, UIParent, "SecureHandlerBaseTemplate")
 coordinator:SetAttribute("open", [[
-	local wheel = ...
+	local bar = ...
+	local wheel = self:GetFrameRef("wheel" .. bar)
 	local previous = self:GetAttribute("current")
 	if previous and previous ~= wheel then previous:Hide() end
 	if not wheel:IsShown() then wheel:Show() end
@@ -31,8 +32,7 @@ local open = CreateFrame("Button", "RadialBarsOpen", UIParent, "SecureHandlerCli
 open:RegisterForClicks("AnyUp")
 SecureHandlerSetFrameRef(open, "coordinator", coordinator)
 open:SetAttribute("_onclick", [[
-	local wheel = self:GetFrameRef("wheel")
-	self:GetFrameRef("coordinator"):RunAttribute("open", wheel)
+	self:GetFrameRef("coordinator"):RunAttribute("open", self:GetAttribute("rb-bar"))
 ]])
 
 local CreateCircleMask = ns.Visuals.CircleMask
@@ -73,6 +73,7 @@ wheel:SetClampedToScreen(true)
 wheel:SetMovable(true)
 wheel:Hide()
 SecureHandlerSetFrameRef(wheel, "coordinator", coordinator)
+wheel:SetAttribute("rb-bar", bar)
 
 local sensor = CreateFrame("Frame", Name("Sensor"), wheel, "SecureFrameTemplate")
 sensor:SetSize(SENSOR_SIZE, SENSOR_SIZE)
@@ -389,13 +390,13 @@ SecureHandlerWrapScript(trigger, "OnClick", wheel, [[
 			if owner:IsShown() then
 				owner:Hide()
 			else
-				owner:GetFrameRef("coordinator"):RunAttribute("open", owner)
+				owner:GetFrameRef("coordinator"):RunAttribute("open", owner:GetAttribute("rb-bar"))
 			end
 		end
 		return false
 	end
 	if down then
-		owner:GetFrameRef("coordinator"):RunAttribute("open", owner)
+		owner:GetFrameRef("coordinator"):RunAttribute("open", owner:GetAttribute("rb-bar"))
 		self:SetAttribute("rb-armed", true)
 		return false
 	end
@@ -660,6 +661,7 @@ end
 
 for bar = 1, 8 do
 	Wheels.instances[bar] = CreateWheel(bar)
+	SecureHandlerSetFrameRef(coordinator, "wheel" .. bar, Wheels.instances[bar].frame)
 end
 
 function Wheels:Apply()
@@ -672,7 +674,7 @@ function Wheels:Apply()
 	for bar = 1, 8 do
 		self.instances[bar]:Apply()
 	end
-	SecureHandlerSetFrameRef(open, "wheel", self.instances[ns.db.activeBar].frame)
+	open:SetAttribute("rb-bar", ns.db.activeBar)
 	if preview then self:SetPreview(true) end
 end
 

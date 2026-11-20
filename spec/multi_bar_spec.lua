@@ -57,6 +57,21 @@ describe("independent radial bars", function()
 		assert.same({}, wow.actions)
 	end)
 
+	it("executes every Hold key through the scrubbed coordinator boundary without selecting its edit bar", function()
+		local firstSlots = { 1, 61, 49, 25, 37, 145, 157, 169 }
+		for bar = 1, 8 do Config(bar, "hold") end
+		Combat()
+		PointUp()
+		for bar = 1, 8 do
+			wow.Key("F" .. bar, true)
+			VisibleOnly(bar)
+			wow.Key("F" .. bar, false)
+			VisibleOnly(nil)
+			assert.equal(firstSlots[bar], wow.actions[bar])
+		end
+		assert.equal(8, #wow.actions)
+	end)
+
 	it("changes the edit target without losing other configurations or bindings", function()
 		local first, last = Config(1, "hold"), Config(8)
 		first.radius, last.radius, last.shape = 80, 210, "slice"

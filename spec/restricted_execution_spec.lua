@@ -1,0 +1,35 @@
+local wow = require("spec.helpers.wow")
+
+describe("restricted execution boundary model", function()
+	before_each(function() wow.Reset() end)
+
+	it("scrubs framehandle varargs without scrubbing self or scalar argument positions", function()
+		local header = CreateFrame("Frame", nil, UIParent, "SecureHandlerBaseTemplate")
+		local wheel = CreateFrame("Frame", nil, UIParent, "SecureHandlerShowHideTemplate")
+		header:SetAttribute("probe", [[
+			local handle, bar, flag, label = ...
+			self:SetAttribute("handle-survived", handle ~= nil)
+			self:SetAttribute("bar", bar)
+			self:SetAttribute("flag", flag)
+			self:SetAttribute("label", label)
+		]])
+		header:RunAttribute("probe", wheel, 7, true, "wheel7")
+		assert.is_false(header:GetAttribute("handle-survived"))
+		assert.equal(7, header:GetAttribute("bar"))
+		assert.is_true(header:GetAttribute("flag"))
+		assert.equal("wheel7", header:GetAttribute("label"))
+	end)
+
+	it("preserves installed frame refs and framehandle-valued ownership attributes", function()
+		local header = CreateFrame("Frame", nil, UIParent, "SecureHandlerBaseTemplate")
+		local wheel = CreateFrame("Frame", nil, UIParent, "SecureHandlerShowHideTemplate")
+		SecureHandlerSetFrameRef(header, "wheel", wheel)
+		header:SetAttribute("probe", [[
+			self:SetAttribute("current", self:GetFrameRef("wheel"))
+			self:GetAttribute("current"):Hide()
+		]])
+		header:RunAttribute("probe")
+		assert.equal(wheel, header:GetAttribute("current"))
+		assert.is_false(wheel:IsShown())
+	end)
+end)

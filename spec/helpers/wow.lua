@@ -118,8 +118,16 @@ end
 function M.Run(body, frame, owner, down, ...)
 	local chunk = assert(loadstring(body))
 	setfenv(chunk, { self = frame, owner = owner, down = down, math = math })
+	-- RestrictedExecution preserves self specially, but scrubs non-scalar varargs.
+	local arguments, count = { ... }, select("#", ...)
+	for index = 1, count do
+		local kind = type(arguments[index])
+		if kind ~= "nil" and kind ~= "string" and kind ~= "number" and kind ~= "boolean" then
+			arguments[index] = nil
+		end
+	end
 	M.secureDepth = M.secureDepth + 1
-	local result = { pcall(chunk, ...) }
+	local result = { pcall(chunk, unpack(arguments, 1, count)) }
 	M.secureDepth = M.secureDepth - 1
 	if not result[1] then error(result[2]) end
 	return unpack(result, 2)

@@ -44,4 +44,22 @@ describe("macro opening", function()
 		assert.is_true(ns.Wheel.instances[8].frame:IsShown())
 		assert.same({}, wow.actions)
 	end)
+
+	it("opens every edit bar through the scrubbed macro boundary without arming a hold release", function()
+		for bar = 1, 8 do
+			local config = ns.GetBarConfig(bar)
+			config.mode, config.key = "hold", "F" .. bar
+			ns.db.activeBar = bar
+			ns.ApplyWhenSafe()
+			wow.inCombat, wow.enforceCombat = true, true
+			wow.Click(open, false)
+			for other = 1, 8 do
+				assert.equal(other == bar, ns.Wheel.instances[other].frame:IsShown())
+			end
+			wow.Key("F" .. bar, false)
+			assert.is_true(ns.Wheel.instances[bar].frame:IsShown())
+			assert.same({}, wow.actions)
+			wow.inCombat = false
+		end
+	end)
 end)
