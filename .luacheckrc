@@ -2,7 +2,7 @@ std = "lua51"
 max_line_length = false
 codes = true
 self = false
-exclude_files = { "node_modules/", ".luarocks/" }
+exclude_files = { "node_modules/", ".lua/", ".luarocks/", ".install/" }
 
 -- Globals the addon defines.
 globals = {
