@@ -241,6 +241,10 @@ previewButton:SetScript("OnClick", function()
 end)
 widgets.preview = previewButton
 
+Label(placement, "Live preview: hover to inspect. Never uses actions.", "GameFontHighlightSmall", 10)
+local inlinePreview = ns.CreateSettingsPreview(placement, scroll)
+AddRow(placement, inlinePreview, 8, function(width) inlinePreview:Layout(width) end)
+
 local wheelLayout = Section("Wheel layout")
 Label(wheelLayout, "Icon shape")
 widgets.shape = RadioGroup(wheelLayout, {
@@ -391,6 +395,7 @@ function widgets.Refresh()
 	if not InCombatLockdown() then
 		widgets.status:SetText("")
 	end
+	inlinePreview:Refresh()
 	UpdateLayout()
 end
 
@@ -401,6 +406,7 @@ canvas:SetScript("OnShow", function()
 	UpdateLayout()
 end)
 canvas:SetScript("OnHide", function()
+	inlinePreview:Reset()
 	ns.Wheel:SetPreview(false)
 end)
 

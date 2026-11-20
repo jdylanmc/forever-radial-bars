@@ -5,7 +5,7 @@ describe("addon files", function()
 
 	setup(function()
 		wow.Reset()
-		ns = wow.Load("Core.lua", "Changelog.lua", "Wheel.lua", "Settings.lua")
+		ns = wow.Load("Core.lua", "Changelog.lua", "Visuals.lua", "Wheel.lua", "SettingsPreview.lua", "Settings.lua")
 	end)
 
 	it("load in TOC order", function()
@@ -16,7 +16,7 @@ describe("addon files", function()
 				files[#files + 1] = line
 			end
 		end
-		assert.same({ "Core.lua", "Changelog.lua", "Wheel.lua", "Settings.lua" }, files)
+		assert.same({ "Core.lua", "Changelog.lua", "Visuals.lua", "Wheel.lua", "SettingsPreview.lua", "Settings.lua" }, files)
 		assert.is_table(ns.Wheel)
 		assert.is_function(SlashCmdList.RADIALBARS)
 	end)

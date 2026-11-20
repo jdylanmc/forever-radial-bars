@@ -10,5 +10,7 @@
 
 Core.lua
 Changelog.lua
+Visuals.lua
 Wheel.lua
+SettingsPreview.lua
 Settings.lua

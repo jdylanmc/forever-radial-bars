@@ -67,7 +67,7 @@ describe("radial slice rendering and selection", function()
 			GetActionCooldown = function() return { startTime = 0, duration = 0, modRate = 1 } end,
 			GetActionDisplayCount = function() return "" end,
 		}
-		ns = wow.Load("Core.lua", "Wheel.lua")
+		ns = wow.Load("Core.lua", "Visuals.lua", "Wheel.lua")
 		wow.Fire("ADDON_LOADED", "RadialBars")
 		config = ns.GetBarConfig(2)
 		config.shape = "slice"

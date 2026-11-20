@@ -19,7 +19,7 @@ describe("macro opening", function()
 			refs[frame] = refs[frame] or {}
 			refs[frame][name] = target
 		end
-		wow.Load("Core.lua", "Changelog.lua", "Wheel.lua")
+		wow.Load("Core.lua", "Changelog.lua", "Visuals.lua", "Wheel.lua")
 	end)
 
 	local function RunOpen(mode, shown)

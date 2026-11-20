@@ -28,7 +28,7 @@ describe("direction selection", function()
 
 	setup(function()
 		wow.Reset()
-		ns = wow.Load("Core.lua", "Changelog.lua", "Wheel.lua")
+		ns = wow.Load("Core.lua", "Changelog.lua", "Visuals.lua", "Wheel.lua")
 	end)
 
 	it("puts slot 1 at the top and runs clockwise", function()

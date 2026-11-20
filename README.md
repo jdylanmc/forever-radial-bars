@@ -38,6 +38,11 @@ Settings are grouped into five sections:
 - **Open at:** screen center, the mouse cursor, or a fixed position. For a
   fixed position, click **Preview wheel** and drag the wheel into place.
 - **Preview wheel:** opens the floating wheel and shows changes live.
+- **Live preview:** the embedded wheel shows the bar being edited, including
+  empty slots. Hover to highlight a slot and inspect its name and optional
+  description. Clicking never uses an action. It fits within the settings panel
+  and reflects saved edits immediately, even while combat delays changes to
+  the real wheel. Use the separate **Preview wheel** button to place a fixed wheel.
 
 **Wheel layout**
 
@@ -60,7 +65,8 @@ Settings are grouped into five sections:
   the center; its description shows too when the center is at least about 100
   pixels wide (raise **Center size** or **Spacing**).
 
-Works in combat. Settings changed in combat apply when combat ends.
+The real wheel works in combat. Settings changed in combat apply to it when
+combat ends.
 
 Options > AddOns > Radial Bars > **Changelog** lists what changed in each
 version.
@@ -112,6 +118,8 @@ npm run changelog:check
 | --- | --- |
 | `Core.lua` | Saved settings, bar-to-slot map, combat-safe apply |
 | `Wheel.lua` | Secure wheel, slot buttons, hotkey trigger, visuals |
+| `Visuals.lua` | Shared icon geometry, native slice masks, read-only action labels |
+| `SettingsPreview.lua` | Unprotected, hover-only embedded settings wheel |
 | `Settings.lua` | Options page and key capture |
 | `Media/*.tga` | Textures: slices for 4-12 slots, inverse hub mask, pointer, blank cursor, addon-list icon |
 | `art/` | Icon source art, CurseForge avatar, hub-mask generator (not packaged) |

@@ -4,7 +4,6 @@ local CIRCLE_MASK = "Interface\\CharacterFrame\\TempPortraitAlphaMask"
 local SQUARE_SWIPE = "Interface\\Buttons\\WHITE8X8"
 local EMPTY_SLOT = "Interface\\Buttons\\UI-EmptySlot-Disabled"
 local WEDGE_PATH = "Interface\\AddOns\\RadialBars\\Media\\Wedge"
-local SLICE_HUB_MASK = "Interface\\AddOns\\RadialBars\\Media\\SliceHubMask"
 local BLANK_CURSOR = "Interface\\AddOns\\RadialBars\\Media\\Blank"
 local POINTER = "Interface\\AddOns\\RadialBars\\Media\\Pointer"
 local SENSOR_SIZE = 4096
@@ -13,25 +12,8 @@ local MIN_DEAD_ZONE = 12
 local Wheel = {}
 ns.Wheel = Wheel
 
-local function CreateCircleMask(parent, texture)
-	local mask = parent:CreateMaskTexture()
-	mask:SetTexture(CIRCLE_MASK, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
-	mask:SetAllPoints(texture)
-	texture:AddMaskTexture(mask)
-	return mask
-end
-
-local function SetMasked(texture, mask, masked)
-	texture:RemoveMaskTexture(mask)
-	if masked then
-		texture:AddMaskTexture(mask)
-	end
-end
-
--- Slot 1 points up; slots run clockwise. Angles in degrees, 0 = right.
-local function SlotAngle(index, count)
-	return 90 - (index - 1) * (360 / count)
-end
+local CreateCircleMask = ns.Visuals.CircleMask
+local SlotAngle = ns.Visuals.SlotAngle
 
 -- Restricted snippet: sets local `index` to the slot in the cursor's direction
 -- from the wheel center, or nil inside the dead zone. A large protected
@@ -131,24 +113,7 @@ for index = 1, ns.NUM_SLOTS do
 	button:RegisterForClicks("AnyUp")
 	button:SetAttribute("type", "action")
 
-	button.icon = button:CreateTexture(nil, "ARTWORK")
-	button.icon:SetAllPoints()
-	button.iconMask = CreateCircleMask(button, button.icon)
-
-	-- Wheel-level artwork stays below the wedge highlights, gaps, and hub.
-	button.sliceIcon = wheel:CreateTexture(nil, "ARTWORK")
-	button.sliceIcon:Hide()
-	button.sliceMask = wheel:CreateMaskTexture()
-	button.sliceMask:SetPoint("CENTER")
-	button.sliceIcon:AddMaskTexture(button.sliceMask)
-	button.sliceHubMask = wheel:CreateMaskTexture()
-	button.sliceHubMask:SetPoint("CENTER")
-	button.sliceHubMask:SetTexture(SLICE_HUB_MASK, "CLAMP", "CLAMP")
-	button.sliceIcon:AddMaskTexture(button.sliceHubMask)
-	button.actionIcon = button.icon
-
-	button.border = button:CreateTexture(nil, "OVERLAY")
-	button.border:SetAtlas("UI-HUD-ActionBar-IconFrame")
+	ns.Visuals.CreateSlot(button, wheel)
 
 	button.cooldown = CreateFrame("Cooldown", nil, button, "CooldownFrameTemplate")
 	button.cooldown:SetAllPoints()
@@ -221,36 +186,8 @@ SecureHandlerWrapScript(selector, "OnClick", wheel, [[
 	return nil, "close"
 ]], [[ owner:Hide() ]])
 
-local function ActionName(action)
-	local ok, name = pcall(function()
-		local actionType, id = GetActionInfo(action)
-		if actionType == "spell" then
-			return C_Spell.GetSpellName(id)
-		elseif actionType == "item" then
-			return C_Item.GetItemNameByID(id)
-		end
-		return C_ActionBar.GetActionText(action)
-	end)
-	return ok and name or nil
-end
-
--- Tooltip text can be secret in restricted content; on any failure, skip it.
-local function ActionDescription(action)
-	local ok, text = pcall(function()
-		local data = C_TooltipInfo.GetAction(action)
-		local lines = data and data.lines
-		if not lines then
-			return nil
-		end
-		for i = #lines, 2, -1 do
-			local line = lines[i].leftText
-			if line and line ~= "" then
-				return line
-			end
-		end
-	end)
-	return ok and text or nil
-end
+local ActionName = ns.Visuals.ActionName
+local ActionDescription = ns.Visuals.ActionDescription
 
 -- Insecure mirror of PICK_DIRECTION, for highlight and the center label.
 -- Returns the slot index (nil in the dead zone) and the pointing angle.
@@ -517,27 +454,6 @@ function Wheel:Refresh()
 	end
 end
 
--- Fit upright artwork to the sector's bounding square, not to an action button.
-local function SliceBounds(angle, halfStep, inner, outer)
-	local left, right, bottom, top = math.huge, -math.huge, math.huge, -math.huge
-	local function Include(degrees, radius)
-		local radians = math.rad(degrees)
-		local x, y = radius * math.cos(radians), radius * math.sin(radians)
-		left, right = math.min(left, x), math.max(right, x)
-		bottom, top = math.min(bottom, y), math.max(top, y)
-	end
-	Include(angle - halfStep, inner)
-	Include(angle + halfStep, inner)
-	Include(angle - halfStep, outer)
-	Include(angle + halfStep, outer)
-	for cardinal = 0, 270, 90 do
-		if math.abs((cardinal - angle + 180) % 360 - 180) <= halfStep then
-			Include(cardinal, outer)
-		end
-	end
-	return (left + right) / 2, (bottom + top) / 2, math.max(right - left, top - bottom)
-end
-
 local function Layout(config)
 	local shape, count = config.shape, config.count
 	local radius, iconSize = config.radius, config.iconSize
@@ -583,50 +499,15 @@ local function Layout(config)
 	end
 
 	for index, button in ipairs(slots) do
+		ns.Visuals.LayoutSlot(button, wheel, config, index)
 		local shown = index <= count
-		button:SetShown(shown)
-		button.sliceIcon:SetShown(shown and slice)
-		button.icon:SetShown(not slice)
-		button.actionIcon = slice and button.sliceIcon or button.icon
 		if shown then
-			local degrees = SlotAngle(index, count)
-			local angle = math.rad(degrees)
-			button:ClearAllPoints()
-			button:SetPoint("CENTER", wheel, "CENTER", radius * math.cos(angle), radius * math.sin(angle))
-			button:SetSize(iconSize, iconSize)
-			button:SetAlpha(config.iconAlpha)
 			button:EnableMouse(not slice)
-
-			if slice then
-				local x, y, size = SliceBounds(degrees, step / 2, deadZone, outer)
-				button.sliceIcon:ClearAllPoints()
-				button.sliceIcon:SetPoint("CENTER", wheel, "CENTER", x, y)
-				button.sliceIcon:SetSize(size * config.sliceIconZoom, size * config.sliceIconZoom)
-				button.sliceIcon:SetAlpha(config.iconAlpha)
-				-- The mask remains wheel-sized and stationary while the artwork zooms.
-				button.sliceMask:SetTexture(WEDGE_PATH .. count, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
-				button.sliceMask:SetSize(outer * 2, outer * 2)
-				button.sliceMask:SetRotation(math.rad(degrees - 90))
-				-- The inverse disk has a UV radius of 1/4; clamped white edges
-				-- let its transparent center track any configured dead-zone size.
-				local span = outer / (2 * deadZone)
-				button.sliceHubMask:SetSize(outer * 2, outer * 2)
-				button.sliceHubMask:SetTexCoord(0.5 - span / 2, 0.5 + span / 2, 0.5 - span / 2, 0.5 + span / 2)
-			end
-
-			SetMasked(button.icon, button.iconMask, round)
 			if round then
-				button.icon:SetTexCoord(0, 1, 0, 1)
 				button.cooldown:SetSwipeTexture(CIRCLE_MASK)
 			else
-				button.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
 				button.cooldown:SetSwipeTexture(SQUARE_SWIPE)
 			end
-			local outset = iconSize * 0.06
-			button.border:SetShown(not round)
-			button.border:ClearAllPoints()
-			button.border:SetPoint("TOPLEFT", -outset, outset)
-			button.border:SetPoint("BOTTOMRIGHT", outset, -outset)
 			button.roundHighlight:SetShown(shape == "circle")
 			button.squareHighlight:SetShown(not round)
 		end
