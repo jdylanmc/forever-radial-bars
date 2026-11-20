@@ -349,6 +349,17 @@ close:RegisterForClicks("AnyUp")
 SecureHandlerSetFrameRef(close, "wheel", wheel)
 close:SetAttribute("_onclick", [[ self:GetFrameRef("wheel"):Hide() ]])
 
+-- A separate secure endpoint keeps macros independent of hotkey toggle/hold.
+local open = CreateFrame("Button", "RadialBarsOpen", UIParent, "SecureHandlerClickTemplate")
+open:RegisterForClicks("AnyUp")
+SecureHandlerSetFrameRef(open, "wheel", wheel)
+open:SetAttribute("_onclick", [[
+	local wheel = self:GetFrameRef("wheel")
+	if not wheel:IsShown() then
+		wheel:Show()
+	end
+]])
+
 -- Position on every open, so "cursor" follows the mouse even in combat.
 wheel:SetAttribute("_onshow", [[
 	self:ClearAllPoints()

@@ -45,6 +45,25 @@ Works in combat. Settings changed in combat apply when combat ends.
 Options > AddOns > Radial Bars > **Changelog** lists what changed in each
 version.
 
+### Open from a macro
+
+Put this line in a macro and place it on an action bar:
+
+```text
+/click RadialBarsOpen
+```
+
+With Radial Bars loaded, this opens the currently configured wheel. Repeating
+it leaves an open wheel open, without moving it or using a slot. Click a slot
+to use it, or use the center **Cancel** or Esc to close. The macro does not
+simulate the hotkey: even in Hold mode, releasing the macro key uses nothing.
+Hold-mode highlighting and cursor settings still apply.
+
+The endpoint uses a secure click handler, so it is designed for macros used
+in or out of combat; this path still needs in-game verification on Forever.
+It does not select another bar or apply settings deferred until combat ends.
+Bare `/radialbars` still opens settings.
+
 ## Develop
 
 Symlink this repository into the Forever AddOns folder (macOS):
