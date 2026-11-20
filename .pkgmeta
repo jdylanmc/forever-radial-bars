@@ -1,0 +1,4 @@
+package-as: RadialBars
+
+ignore:
+  - README.md

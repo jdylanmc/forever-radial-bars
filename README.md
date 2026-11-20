@@ -63,6 +63,15 @@ client restart.
 
 More than one wheel at a time.
 
+## Release
+
+Pushing an annotated tag (for example `git tag -a v0.6.0 -m "v0.6.0"` then
+`git push --tags`) runs [BigWigsMods/packager](https://github.com/BigWigsMods/packager):
+it zips the addon as `RadialBars`, publishes a GitHub release, and uploads to
+CurseForge when the `CF_API_TOKEN` secret and `## X-Curse-Project-ID` are set.
+Tags without `alpha` or `beta` become Release files. The TOC version comes from
+the tag.
+
 ## License
 
 MIT. See [LICENSE](LICENSE).
