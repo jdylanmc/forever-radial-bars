@@ -38,8 +38,9 @@ Scroll within the settings panel to reach all controls when the window is short.
   it), icon opacity.
 - **Slice icon zoom:** Radial slice artwork fills its pie wedge. Zoom enlarges
   the artwork within that fixed wedge (default 115%, range 100-200%); the
-  sides, circular rim, and center Cancel zone clip it. Circle and Square
-  icons are unaffected. Slice gaps remain visible over the artwork.
+  sides, circular rim, and center Cancel zone clip it. The control is disabled
+  for Circle and Square; their icons are unchanged. Slice gaps remain visible
+  over the artwork.
 - **Show description in center:** the selected ability's name always shows in
   the center; its description shows too when the center is at least about 100
   pixels wide (raise **Center size** or **Spacing**).
