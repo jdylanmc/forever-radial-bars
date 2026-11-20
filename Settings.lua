@@ -11,7 +11,14 @@ local MODIFIER_KEYS = {
 local RIGHT_LABEL = MinimalSliderWithSteppersMixin.Label.Right
 local COLUMN_WIDTH = 300
 
-local panel = CreateFrame("Frame")
+local canvas = CreateFrame("Frame")
+local scroll = CreateFrame("ScrollFrame", nil, canvas, "UIPanelScrollFrameTemplate")
+scroll:SetPoint("TOPLEFT", 0, -8)
+scroll:SetPoint("BOTTOMRIGHT", -26, 8)
+
+local panel = CreateFrame("Frame", nil, scroll)
+panel:SetSize(COLUMN_WIDTH * 2 + 36, 1)
+scroll:SetScrollChild(panel)
 local widgets = { sliders = {} }
 local refreshing = false
 
@@ -204,8 +211,21 @@ end
 widgets.checks = {}
 local describe = Checkbox(previous, -4, -10, "Show description in center",
 	"Needs a center size large enough to fit text.", "showDescription")
-Checkbox(describe.note, -4, -6, "Hide cursor in Hold mode",
+local hideCursor = Checkbox(describe.note, -4, -6, "Hide cursor in Hold mode",
 	"A pointer shows the direction instead.", "hideCursor")
+
+local function UpdateLayout()
+	panel:SetWidth(scroll:GetWidth())
+	local top, bottom, statusBottom = panel:GetTop(), hideCursor.note:GetBottom(), widgets.status:GetBottom()
+	if not top or not bottom or not statusBottom then
+		return
+	end
+	panel:SetHeight(top - math.min(bottom, statusBottom) + 16)
+	scroll:UpdateScrollChildRect()
+	scroll:SetVerticalScroll(math.min(scroll:GetVerticalScroll(), scroll:GetVerticalScrollRange()))
+end
+
+scroll:HookScript("OnSizeChanged", UpdateLayout)
 
 -- Key capture.
 
@@ -290,16 +310,20 @@ function widgets.Refresh()
 	if not InCombatLockdown() then
 		widgets.status:SetText("")
 	end
+	UpdateLayout()
 end
 
 ns.OnPreviewChanged = widgets.Refresh
 
-panel:SetScript("OnShow", widgets.Refresh)
-panel:SetScript("OnHide", function()
+canvas:SetScript("OnShow", function()
+	widgets.Refresh()
+	UpdateLayout()
+end)
+canvas:SetScript("OnHide", function()
 	ns.Wheel:SetPreview(false)
 end)
 
-local category = Settings.RegisterCanvasLayoutCategory(panel, "Radial Bars")
+local category = Settings.RegisterCanvasLayoutCategory(canvas, "Radial Bars")
 Settings.RegisterAddOnCategory(category)
 ns.settingsCategory = category
 
@@ -315,13 +339,13 @@ local installed = changelogPanel:CreateFontString(nil, "ARTWORK", "GameFontHighl
 installed:SetPoint("TOPLEFT", changelogHeader, "BOTTOMLEFT", 0, -6)
 installed:SetText("Installed version: " .. (C_AddOns.GetAddOnMetadata("RadialBars", "Version") or "unknown"))
 
-local scroll = CreateFrame("ScrollFrame", nil, changelogPanel, "UIPanelScrollFrameTemplate")
-scroll:SetPoint("TOPLEFT", installed, "BOTTOMLEFT", 0, -12)
-scroll:SetPoint("BOTTOMRIGHT", -36, 16)
+local changelogScroll = CreateFrame("ScrollFrame", nil, changelogPanel, "UIPanelScrollFrameTemplate")
+changelogScroll:SetPoint("TOPLEFT", installed, "BOTTOMLEFT", 0, -12)
+changelogScroll:SetPoint("BOTTOMRIGHT", -36, 16)
 
-local content = CreateFrame("Frame", nil, scroll)
+local content = CreateFrame("Frame", nil, changelogScroll)
 content:SetSize(1, 1)
-scroll:SetScrollChild(content)
+changelogScroll:SetScrollChild(content)
 
 local changelogText = content:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
 changelogText:SetPoint("TOPLEFT")
@@ -329,7 +353,7 @@ changelogText:SetJustifyH("LEFT")
 changelogText:SetSpacing(3)
 changelogText:SetText(ns.FormatChangelog(ns.CHANGELOG))
 
-scroll:SetScript("OnSizeChanged", function(_, width)
+changelogScroll:SetScript("OnSizeChanged", function(_, width)
 	content:SetWidth(width)
 	changelogText:SetWidth(width - 8)
 	content:SetHeight(changelogText:GetStringHeight() + 8)

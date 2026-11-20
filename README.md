@@ -11,6 +11,7 @@ center or at the mouse cursor. The original Blizzard bar stays visible; Action B
 
 Open Options > AddOns > Radial Bars, or `/radialbars`. Every setting below is
 saved per bar.
+Scroll within the settings panel to reach all controls when the window is short.
 
 **Behavior**
 
