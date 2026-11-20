@@ -339,13 +339,13 @@ local installed = changelogPanel:CreateFontString(nil, "ARTWORK", "GameFontHighl
 installed:SetPoint("TOPLEFT", changelogHeader, "BOTTOMLEFT", 0, -6)
 installed:SetText("Installed version: " .. (C_AddOns.GetAddOnMetadata("RadialBars", "Version") or "unknown"))
 
-local scroll = CreateFrame("ScrollFrame", nil, changelogPanel, "UIPanelScrollFrameTemplate")
-scroll:SetPoint("TOPLEFT", installed, "BOTTOMLEFT", 0, -12)
-scroll:SetPoint("BOTTOMRIGHT", -36, 16)
+local changelogScroll = CreateFrame("ScrollFrame", nil, changelogPanel, "UIPanelScrollFrameTemplate")
+changelogScroll:SetPoint("TOPLEFT", installed, "BOTTOMLEFT", 0, -12)
+changelogScroll:SetPoint("BOTTOMRIGHT", -36, 16)
 
-local content = CreateFrame("Frame", nil, scroll)
+local content = CreateFrame("Frame", nil, changelogScroll)
 content:SetSize(1, 1)
-scroll:SetScrollChild(content)
+changelogScroll:SetScrollChild(content)
 
 local changelogText = content:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
 changelogText:SetPoint("TOPLEFT")
@@ -353,7 +353,7 @@ changelogText:SetJustifyH("LEFT")
 changelogText:SetSpacing(3)
 changelogText:SetText(ns.FormatChangelog(ns.CHANGELOG))
 
-scroll:SetScript("OnSizeChanged", function(_, width)
+changelogScroll:SetScript("OnSizeChanged", function(_, width)
 	content:SetWidth(width)
 	changelogText:SetWidth(width - 8)
 	content:SetHeight(changelogText:GetStringHeight() + 8)
