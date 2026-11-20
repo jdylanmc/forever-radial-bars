@@ -1,6 +1,7 @@
 ## Interface: 16001
 ## Title: Radial Bars
 ## Notes: Turns an action bar into a radial wheel opened by a hotkey.
+## IconTexture: Interface\AddOns\RadialBars\Media\Icon
 ## Author: jdylanmc
 ## Version: @project-version@
 ## X-License: MIT

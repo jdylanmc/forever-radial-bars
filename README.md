@@ -1,5 +1,7 @@
 # Radial Bars
 
+<img src="art/icon-400.png" alt="Radial Bars icon" width="160">
+
 Radial action bars for World of Warcraft: Forever.
 
 Turns one action bar (2-8) into a circular wheel, opened by a hotkey at screen
@@ -57,7 +59,8 @@ client restart.
 | `Core.lua` | Saved settings, bar-to-slot map, combat-safe apply |
 | `Wheel.lua` | Secure wheel, slot buttons, hotkey trigger, visuals |
 | `Settings.lua` | Options page and key capture |
-| `Media/*.tga` | Generated textures: slices for 4-12 slots, pointer, blank cursor |
+| `Media/*.tga` | Textures: slices for 4-12 slots, pointer, blank cursor, addon-list icon |
+| `art/` | Icon source art and the 400x400 CurseForge avatar (not packaged) |
 
 ## Planned
 
