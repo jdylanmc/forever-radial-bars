@@ -44,7 +44,7 @@ Works in combat. Settings changed in combat apply when combat ends.
 Symlink this repository into the Forever AddOns folder (macOS):
 
 ```sh
-ln -s ~/git/_opensource/jdylanmc/radial-bars \
+ln -s ~/git/_opensource/jdylanmc/forever-radial-bars \
   "/Applications/World of Warcraft/_forever_/Interface/AddOns/RadialBars"
 ```
 
@@ -62,3 +62,7 @@ client restart.
 ## Planned
 
 More than one wheel at a time.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
