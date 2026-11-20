@@ -31,6 +31,18 @@ ns.LIMITS = {
 	iconAlpha = { 1, 0.1, 1 },
 }
 
+-- Slot index (1 = up, clockwise) for an offset from the wheel center, or nil
+-- inside the dead zone. Must match PICK_DIRECTION in Wheel.lua, which runs in
+-- the restricted environment and cannot call this.
+function ns.DirectionIndex(dx, dy, dead, count)
+	if dx * dx + dy * dy < dead * dead then
+		return nil
+	end
+	local step = 360 / count
+	local offset = (90 - math.deg(math.atan2(dy, dx))) % 360
+	return math.floor((offset + step / 2) / step) % count + 1
+end
+
 function ns.SlotFor(bar, index)
 	return (ns.BARS[bar].page - 1) * ns.NUM_SLOTS + index
 end
@@ -61,6 +73,29 @@ function ns.GetBarConfig(bar)
 	config.x = tonumber(config.x) or 0
 	config.y = tonumber(config.y) or 0
 	return config
+end
+
+local GOLD = "|cffffd100"
+local GREY = "|cffa0a0a0"
+local RESET = "|r"
+
+-- Display text for the settings Changelog page, newest release first.
+function ns.FormatChangelog(changelog)
+	local lines = {}
+	for _, release in ipairs(changelog or {}) do
+		lines[#lines + 1] = GOLD .. release.version .. RESET
+		for _, section in ipairs(release.sections) do
+			lines[#lines + 1] = GREY .. section.title .. RESET
+			for _, entry in ipairs(section.entries) do
+				lines[#lines + 1] = "  - " .. entry
+			end
+		end
+		lines[#lines + 1] = ""
+	end
+	if #lines == 0 then
+		return "No changes recorded."
+	end
+	return table.concat(lines, "\n")
 end
 
 local function InitDB()

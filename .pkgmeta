@@ -1,5 +1,16 @@
 package-as: RadialBars
 
+manual-changelog:
+  filename: CHANGELOG.md
+  markup-type: markdown
+
 ignore:
+  - AGENTS.md
+  - CHANGELOG.md
   - README.md
   - art
+  - node_modules
+  - package.json
+  - package-lock.json
+  - scripts
+  - spec

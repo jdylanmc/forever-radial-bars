@@ -303,6 +303,40 @@ local category = Settings.RegisterCanvasLayoutCategory(panel, "Radial Bars")
 Settings.RegisterAddOnCategory(category)
 ns.settingsCategory = category
 
+-- Changelog subpage.
+
+local changelogPanel = CreateFrame("Frame")
+
+local changelogHeader = changelogPanel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
+changelogHeader:SetPoint("TOPLEFT", 16, -16)
+changelogHeader:SetText("Radial Bars Changelog")
+
+local installed = changelogPanel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+installed:SetPoint("TOPLEFT", changelogHeader, "BOTTOMLEFT", 0, -6)
+installed:SetText("Installed version: " .. (C_AddOns.GetAddOnMetadata("RadialBars", "Version") or "unknown"))
+
+local scroll = CreateFrame("ScrollFrame", nil, changelogPanel, "UIPanelScrollFrameTemplate")
+scroll:SetPoint("TOPLEFT", installed, "BOTTOMLEFT", 0, -12)
+scroll:SetPoint("BOTTOMRIGHT", -36, 16)
+
+local content = CreateFrame("Frame", nil, scroll)
+content:SetSize(1, 1)
+scroll:SetScrollChild(content)
+
+local changelogText = content:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+changelogText:SetPoint("TOPLEFT")
+changelogText:SetJustifyH("LEFT")
+changelogText:SetSpacing(3)
+changelogText:SetText(ns.FormatChangelog(ns.CHANGELOG))
+
+scroll:SetScript("OnSizeChanged", function(_, width)
+	content:SetWidth(width)
+	changelogText:SetWidth(width - 8)
+	content:SetHeight(changelogText:GetStringHeight() + 8)
+end)
+
+Settings.RegisterCanvasLayoutSubcategory(category, changelogPanel, "Changelog")
+
 SLASH_RADIALBARS1 = "/radialbars"
 SlashCmdList.RADIALBARS = function()
 	Settings.OpenToCategory(category:GetID())

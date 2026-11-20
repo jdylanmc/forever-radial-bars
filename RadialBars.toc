@@ -8,5 +8,6 @@
 ## SavedVariables: RadialBarsDB
 
 Core.lua
+Changelog.lua
 Wheel.lua
 Settings.lua
