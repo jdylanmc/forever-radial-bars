@@ -5,6 +5,7 @@
 ## Author: jdylanmc
 ## Version: @project-version@
 ## X-License: MIT
+## X-Curse-Project-ID: 1817882
 ## SavedVariables: RadialBarsDB
 
 Core.lua
