@@ -45,24 +45,43 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # Package only when the version has no GitHub release yet. A re-run after a
+      # failed packager step finds the tag and packages it instead of exiting.
       - name: Tag new version
         id: tag
-        if: github.ref_type == 'branch' && steps.changesets.outputs.hasChangesets == 'false'
+        if: github.ref_type == 'tag' || steps.changesets.outputs.hasChangesets == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          version="v$(node -p "require('./package.json').version")"
-          if git ls-remote --exit-code --tags origin "refs/tags/$version" >/dev/null; then
-            echo "$version already released."
-            exit 0
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            version="$GITHUB_REF_NAME"
+          else
+            version="v$(node -p "require('./package.json').version")"
           fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag -a "$version" -m "$version"
-          git push origin "$version"
-          echo "created=true" >> "$GITHUB_OUTPUT"
+          if [ "$GITHUB_REF_TYPE" = tag ] || git ls-remote --exit-code --tags origin "refs/tags/$version" >/dev/null; then
+            if out=$(gh release view "$version" 2>&1); then
+              echo "$version already released."
+              exit 0
+            elif [ "$out" != "release not found" ]; then
+              echo "$out" >&2
+              exit 1
+            fi
+            if [ "$GITHUB_REF_TYPE" = branch ]; then
+              echo "$version is tagged but has no release; packaging the tag."
+              git fetch --force origin "refs/tags/$version:refs/tags/$version"
+              git checkout --detach "$version"
+            fi
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git tag -a "$version" -m "$version"
+            git push origin "$version"
+          fi
+          echo "package=true" >> "$GITHUB_OUTPUT"
 
       # Tags pushed with GITHUB_TOKEN do not start new workflows, so package here.
       - name: Package and upload
-        if: steps.tag.outputs.created == 'true' || github.ref_type == 'tag'
+        if: steps.tag.outputs.package == 'true'
         uses: BigWigsMods/packager@v2
         env:
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
