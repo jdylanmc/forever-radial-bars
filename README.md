@@ -13,38 +13,52 @@ Open Options > AddOns > Radial Bars, or `/radialbars`. Every setting below is
 saved per bar.
 Scroll within the settings panel to reach all controls when the window is short.
 
-**Behavior**
+Settings are grouped into five sections:
 
-- **Action bar:** which bar (2-8) the wheel shows.
+**Action bar**
+
+- Choose which bar (2-8) the wheel shows.
+
+**Activation**
+
+- **Hotkey:** click, then press a key with optional Alt, Ctrl, Shift. It
+  overrides any game binding on that key while Radial Bars is loaded.
+  **Clear** removes the wheel's hotkey.
 - **Hotkey behavior:**
   - **Toggle:** press the hotkey to open, click a slot to use it. The wheel
     closes after use; the center **Cancel**, the hotkey again, or Esc closes it.
   - **Hold:** hold the hotkey and push the mouse toward a slot; it highlights
     and its name shows in the center. Release to use it. Releasing in the
-    center **Cancel** zone uses nothing. The cursor is hidden while held and a
-    pointer shows the direction (option: **Hide cursor in Hold mode**).
+    center **Cancel** zone uses nothing.
+- **Hide cursor in Hold mode:** hides the cursor while held; a pointer shows
+  the direction instead.
+
+**Placement**
+
 - **Open at:** screen center, the mouse cursor, or a fixed position. For a
   fixed position, click **Preview wheel** and drag the wheel into place.
-- **Hotkey:** click, then press a key with optional Alt, Ctrl, Shift. It
-  overrides any game binding on that key while Radial Bars is loaded.
+- **Preview wheel:** opens the floating wheel and shows changes live.
 
-**Appearance**
+**Wheel layout**
 
 - **Icon shape:** Square (default, Blizzard action button border), Circle, or
   Radial slice (pie wedges; the whole wedge is clickable).
 - **Sliders:** buttons shown (first 4-12 of the bar), icon size, spacing
   (distance from center), margin (backdrop around icons), center size (dead
-  zone and slice hub), slice gap, slice icon zoom, backdrop opacity (0 hides
-  it), icon opacity.
+  zone and slice hub), slice gap, slice icon zoom.
 - **Slice icon zoom:** Radial slice artwork fills its pie wedge. Zoom enlarges
   the artwork within that fixed wedge (default 115%, range 100-200%); the
   sides, circular rim, and center Cancel zone clip it. The control is disabled
   for Circle and Square; their icons are unchanged. Slice gaps remain visible
   over the artwork.
+
+**Visibility**
+
+- **Backdrop opacity:** 0 hides the backdrop.
+- **Icon opacity:** how opaque the ability artwork appears.
 - **Show description in center:** the selected ability's name always shows in
   the center; its description shows too when the center is at least about 100
   pixels wide (raise **Center size** or **Spacing**).
-- **Preview wheel** shows changes live.
 
 Works in combat. Settings changed in combat apply when combat ends.
 
