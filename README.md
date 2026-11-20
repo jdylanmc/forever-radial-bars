@@ -86,8 +86,10 @@ Releases are automated with [Changesets](https://github.com/changesets/changeset
 
 If packaging fails after the tag is pushed, re-run the **Release** workflow on
 `main`. It packages an existing `v<version>` tag that has no GitHub release.
-The packager uploads to CurseForge before it creates the GitHub release, so a
-re-run after a GitHub-only failure uploads that version to CurseForge again.
+It also retries a release without an uploaded, nonempty ZIP asset; release
+metadata alone does not mean packaging finished. The packager creates or
+updates the GitHub release before uploading its ZIP. A re-run may upload the
+same version to CurseForge again.
 
 CurseForge upload needs the `CF_API_TOKEN` repository secret and
 `## X-Curse-Project-ID` in `RadialBars.toc`.

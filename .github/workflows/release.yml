@@ -26,7 +26,6 @@ jobs:
           fetch-depth: 0
 
       - uses: actions/setup-node@v7
-        if: github.ref_type == 'branch'
         with:
           node-version: 22
           cache: npm
@@ -39,17 +38,16 @@ jobs:
         if: github.ref_type == 'branch'
         uses: changesets/action@v2
         with:
-          version: npm run version
-          commit: 'chore: version packages'
-          title: 'chore: version packages'
+          version-script: npm run version
+          commit-message: 'chore: version packages'
+          pr-title: 'chore: version packages'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Package only when the version has no GitHub release yet. A re-run after a
-      # failed packager step finds the tag and packages it instead of exiting.
+      # Release metadata can exist before its ZIP upload finishes.
       - name: Tag new version
         id: tag
-        if: github.ref_type == 'tag' || steps.changesets.outputs.hasChangesets == 'false'
+        if: github.ref_type == 'tag' || steps.changesets.outputs['has-changesets'] == 'false'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -59,15 +57,22 @@ jobs:
             version="v$(node -p "require('./package.json').version")"
           fi
           if [ "$GITHUB_REF_TYPE" = tag ] || git ls-remote --exit-code --tags origin "refs/tags/$version" >/dev/null; then
-            if out=$(gh release view "$version" 2>&1); then
-              echo "$version already released."
-              exit 0
-            elif [ "$out" != "release not found" ]; then
+            if out=$(gh api "repos/{owner}/{repo}/releases/tags/$version" 2>&1); then
+              complete=$(printf '%s' "$out" | node -e '
+                const { assets } = JSON.parse(require("node:fs").readFileSync(0, "utf8"));
+                console.log(assets.some(asset => asset.state === "uploaded" &&
+                  asset.size > 0 && /\.zip$/i.test(asset.name)));
+              ')
+              if [ "$complete" = true ]; then
+                echo "$version already has an uploaded ZIP."
+                exit 0
+              fi
+            elif [[ "$out" != *"(HTTP 404)"* ]]; then
               echo "$out" >&2
               exit 1
             fi
             if [ "$GITHUB_REF_TYPE" = branch ]; then
-              echo "$version is tagged but has no release; packaging the tag."
+              echo "$version is tagged but has no complete ZIP; packaging the tag."
               git fetch --force origin "refs/tags/$version:refs/tags/$version"
               git checkout --detach "$version"
             fi
