@@ -208,7 +208,7 @@ describe("settings layout", function()
 		assert.is_not_nil(scroll)
 		Resize(310)
 		scroll:SetVerticalScroll(scroll:GetVerticalScrollRange())
-		Resize(2400)
+		Resize(3000)
 		assert.equal(0, scroll:GetVerticalScrollRange())
 		assert.equal(0, scroll:GetVerticalScroll())
 		assert.is_true(finalNote:GetBottom() >= scroll:GetBottom())
@@ -232,7 +232,10 @@ describe("settings layout", function()
 			previous = sections[title]
 		end
 		local expected = {
-			["Action bar"] = { 2, 3, 4, 5, 6, 7, 8 },
+			["Action bar"] = {
+				1, 2, 3, 4, 5, 6, 7, 8, "copySource1", "copySource2", "copySource3", "copySource4",
+				"copySource5", "copySource6", "copySource7", "copySource8", "Copy settings",
+			},
 			Activation = { "toggle", "hold", "hideCursor", "Not bound", "Clear" },
 			Placement = { "center", "cursor", "fixed", "Preview wheel" },
 			["Wheel layout"] = { "square", "circle", "slice", "count", "iconSize", "radius", "margin", "hubSize", "gap", "sliceIconZoom" },
@@ -345,6 +348,40 @@ describe("settings layout", function()
 		assert.equal(1, applied)
 	end)
 
+	it("copies from an explicit source to the edit target and refreshes controls and inline artwork in combat", function()
+		Resize(610)
+		_G.C_ActionBar.HasAction = function() return true end
+		local controls, copy, slot = {}, nil, nil
+		for _, region in ipairs(regions) do
+			local key = rawget(region, "key") or rawget(region, "value")
+			if key then controls[key] = region end
+			if geometry[region].text == "Copy settings" then copy = region end
+			if rawget(region, "sliceIcon") and not slot then slot = region end
+		end
+		local source = ns.GetBarConfig(8)
+		source.shape, source.radius, source.sliceIconZoom, source.key = "slice", 170, 1.8, "S"
+		ns.GetBarConfig(1).key = "D"
+		controls[1].scripts.OnClick()
+		controls.copySource1.scripts.OnClick()
+		assert.is_false(geometry[copy].enabled)
+		controls.copySource8.scripts.OnClick()
+		assert.is_true(geometry[copy].enabled)
+		wow.inCombat = true
+		local count = applied
+		copy.scripts.OnClick()
+		assert.equal(count, applied)
+		assert.equal(170, geometry[controls.radius].value)
+		assert.equal(1.8, geometry[controls.sliceIconZoom].value)
+		assert.is_true(geometry[controls.slice].checked)
+		assert.equal("ActionTexture1", slot.sliceIcon.calls.SetTexture[1])
+		assert.equal("D", ns.GetBarConfig(1).key)
+		assert.equal("S", source.key)
+		assert.equal(2, ns.GetBarConfig(2).gap)
+		wow.inCombat = false
+		wow.Fire("PLAYER_REGEN_ENABLED")
+		assert.equal(count + 1, applied)
+	end)
+
 	it("retains keyboard capture, Clear, and the floating preview lifecycle", function()
 		Resize(610, 320)
 		local key, clear, preview
@@ -359,9 +396,12 @@ describe("settings layout", function()
 		assert.is_true(geometry[key].keyboard)
 		key.scripts.OnKeyDown(key, "LSHIFT")
 		assert.is_nil(ns.GetBarConfig(2).key)
+		ns.GetBarConfig(8).key, ns.GetBarConfig(8).radius = "SHIFT-K", 225
 		_G.IsShiftKeyDown = function() return true end
 		key.scripts.OnKeyDown(key, "K")
 		assert.equal("SHIFT-K", ns.GetBarConfig(2).key)
+		assert.is_nil(ns.GetBarConfig(8).key)
+		assert.equal(225, ns.GetBarConfig(8).radius)
 		assert.is_false(geometry[key].keyboard)
 		assert.is_false(geometry[key].propagate)
 		key.scripts.OnClick()

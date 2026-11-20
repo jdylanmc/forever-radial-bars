@@ -137,17 +137,41 @@ header:SetText("Radial Bars")
 local intro = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
 intro:SetPoint("TOPLEFT", header, "BOTTOMLEFT", 0, -8)
 intro:SetJustifyH("LEFT")
-intro:SetText("Turns one action bar into a radial wheel opened by a hotkey. The original bar stays visible. Action Bar 1 is not supported.")
+intro:SetText("Configure independent wheels for bars 1-8. Select a bar to edit; every assigned hotkey stays active. Original bars stay visible. Bar 1 always uses fixed action slots 1-12.")
 
 local actionBar = Section("Action bar")
 local barOptions = {}
-for bar = 2, 8 do
+for bar = 1, 8 do
 	barOptions[#barOptions + 1] = { value = bar, label = "Bar " .. bar }
 end
 widgets.bar = RadioGroup(actionBar, barOptions, function(bar)
 	ns.db.activeBar = bar
 	ApplyAndRefresh()
 end, 4, 72)
+
+Label(actionBar, "Copy settings from", nil, 12)
+local copySource = 1
+local copyOptions = {}
+for bar = 1, 8 do
+	copyOptions[#copyOptions + 1] = { value = bar, label = "Bar " .. bar }
+end
+local copyButton = CreateFrame("Button", nil, actionBar, "UIPanelButtonTemplate")
+widgets.copySource = RadioGroup(actionBar, copyOptions, function(bar)
+	copySource = bar
+	widgets.Refresh()
+end, 4, 72)
+-- Distinguish the two selectors without changing their displayed bar labels.
+for _, radio in ipairs(widgets.copySource) do radio.key = "copySource" .. radio.value end
+copyButton:SetSize(140, 24)
+copyButton:SetText("Copy settings")
+AddRow(actionBar, copyButton, 8, function(width)
+	copyButton:SetWidth(math.min(140, width))
+end)
+copyButton:SetScript("OnClick", function()
+	ns.CopyBarSettings(copySource, ns.db.activeBar)
+end)
+Label(actionBar, "Copies appearance, behavior, and placement to the edited bar. Keeps its hotkey and actions.",
+	"GameFontHighlightSmall", 6)
 
 local activation = Section("Activation")
 Label(activation, "Hotkey")
@@ -339,10 +363,11 @@ keyButton:SetScript("OnKeyDown", function(self, key)
 		return
 	end
 	if key ~= "ESCAPE" then
-		Config().key = (IsAltKeyDown() and "ALT-" or "")
+		local keybinding = (IsAltKeyDown() and "ALT-" or "")
 			.. (IsControlKeyDown() and "CTRL-" or "")
 			.. (IsShiftKeyDown() and "SHIFT-" or "")
 			.. key
+		ns.AssignBarKey(ns.db.activeBar, keybinding)
 		ns.ApplyWhenSafe()
 	end
 	StopCapture()
@@ -355,7 +380,7 @@ keyButton:SetScript("OnHide", function()
 end)
 
 clearButton:SetScript("OnClick", function()
-	Config().key = nil
+	ns.AssignBarKey(ns.db.activeBar, nil)
 	ApplyAndRefresh()
 end)
 
@@ -366,6 +391,8 @@ function widgets.Refresh()
 	refreshing = true
 	local config = Config()
 	widgets.bar:Select(ns.db.activeBar)
+	widgets.copySource:Select(copySource)
+	copyButton:SetEnabled(copySource ~= ns.db.activeBar)
 	widgets.mode:Select(config.mode)
 	widgets.position:Select(config.position)
 	widgets.shape:Select(config.shape)
@@ -400,6 +427,7 @@ function widgets.Refresh()
 end
 
 ns.OnPreviewChanged = widgets.Refresh
+ns.OnSettingsChanged = widgets.Refresh
 
 canvas:SetScript("OnShow", function()
 	widgets.Refresh()

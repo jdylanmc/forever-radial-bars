@@ -256,6 +256,7 @@ describe("radial slice rendering and selection", function()
 		config.mode = "hold"
 		ns.Wheel:Apply()
 		local trigger = frames.RadialBarsTrigger
+		wow.Click(trigger, true)
 		Click(trigger, 0, 1000)
 		assert.equal("action", trigger:GetAttribute("type"))
 		assert.equal(61, trigger:GetAttribute("action"))
@@ -267,10 +268,10 @@ describe("radial slice rendering and selection", function()
 		ns.Wheel:Apply()
 		local button = frames.RadialBarsSlot1
 		_G.C_ActionBar.IsUsableAction = function() return false, true end
-		ns.Wheel:Refresh()
+		ns.Wheel.instances[2]:Refresh()
 		assert.same({ 0.5, 0.5, 1, 1 }, button.sliceIcon.calls.SetVertexColor)
 		_G.C_ActionBar.HasAction = function() return false end
-		ns.Wheel:Refresh()
+		ns.Wheel.instances[2]:Refresh()
 		assert.equal("Interface\\Buttons\\UI-EmptySlot-Disabled", button.sliceIcon.calls.SetTexture[1])
 		assert.same({ 1, 1, 1, 0.4 }, button.sliceIcon.calls.SetVertexColor)
 		assert.equal(0.4, button.sliceIcon.calls.SetAlpha[1])

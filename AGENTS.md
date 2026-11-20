@@ -1,8 +1,9 @@
 # Agent instructions
 
 Radial Bars is a World of Warcraft: Forever addon (interface `16001`, game
-type `camelot`/`forever`, Lua 5.1). It turns action bars 2-8 into a radial
-wheel opened by a hotkey. Read `README.md` for features and settings.
+type `camelot`/`forever`, Lua 5.1). It gives action bars 1-8 independent radial
+wheels and hotkeys; only one opens at a time. Bar 1 uses fixed action slots
+1-12, never stance/form/page-following slots. Read `README.md` for settings.
 
 ## Layout
 
@@ -11,7 +12,9 @@ wheel opened by a hotkey. Read `README.md` for features and settings.
 | `RadialBars.toc` | Manifest; Lua load order. Version is `@project-version@`, filled by the packager from the git tag |
 | `Core.lua` | Saved settings, limits, slot math, combat-safe apply, changelog formatting. Keep pure logic here so it is testable |
 | `Changelog.lua` | **Generated** from `CHANGELOG.md`; never edit by hand |
-| `Wheel.lua` | Secure wheel, slot buttons, hotkey trigger, visuals |
+| `Wheel.lua` | Shared secure wheel factory, eight instances, secure coordinator and triggers |
+| `Visuals.lua` | Shared slot rendering and read-only action labels |
+| `SettingsPreview.lua` | Ordinary, action-free preview of the selected edit bar |
 | `Settings.lua` | Options page, Changelog subpage, key capture |
 | `Media/` | Textures (TGA, power-of-two, bottom-left origin) |
 | `spec/` | busted unit tests; `spec/helpers/wow.lua` stubs the client API |
@@ -30,6 +33,12 @@ wheel opened by a hotkey. Read `README.md` for features and settings.
   math on them.
 - **Mirrored logic.** `PICK_DIRECTION` in `Wheel.lua` (restricted) must match
   `ns.DirectionIndex` in `Core.lua`. `spec/direction_spec.lua` enforces it.
+- **Independent bars.** `db.activeBar` selects the edit target and macro endpoint,
+  not the only active binding. Configure all protected instances out of combat
+  through `ApplyWhenSafe`; switch only through the restricted coordinator.
+  Hide invalidates hold arming; key-down latches survive until release to reject
+  stale releases and auto-repeat. Copy settings must preserve destination key
+  and actions. Never use `SetBinding`/`SaveBindings` to restore base bindings.
 - **Verify APIs** against the Forever UI source
   (`Gethe/wow-ui-source`, branch `forever`) before using them. Retail and
   Classic Era docs do not always apply.

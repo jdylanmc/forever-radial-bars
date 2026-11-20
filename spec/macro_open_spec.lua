@@ -1,90 +1,47 @@
 local wow = require("spec.helpers.wow")
 
 describe("macro opening", function()
-	local frames, refs, templates
+	local ns, open, wheel
 
 	before_each(function()
 		wow.Reset()
-		frames, refs, templates = {}, {}, {}
-		local createFrame = CreateFrame
-		_G.CreateFrame = function(kind, name, parent, template)
-			local frame = createFrame(kind, name, parent, template)
-			if name then
-				frames[name] = frame
-				templates[name] = template
-			end
-			return frame
-		end
-		_G.SecureHandlerSetFrameRef = function(frame, name, target)
-			refs[frame] = refs[frame] or {}
-			refs[frame][name] = target
-		end
-		wow.Load("Core.lua", "Changelog.lua", "Visuals.lua", "Wheel.lua")
+		ns = wow.Load("Core.lua", "Changelog.lua", "Visuals.lua", "Wheel.lua")
+		wow.Fire("ADDON_LOADED", "RadialBars")
+		open, wheel = wow.named.RadialBarsOpen, wow.named.RadialBarsWheel
 	end)
 
-	local function RunOpen(mode, shown)
-		local open = assert(frames.RadialBarsOpen, "missing public macro endpoint")
-		local wheel = assert(frames.RadialBarsWheel)
-		local trigger = assert(frames.RadialBarsTrigger)
-		assert.equal("SecureHandlerClickTemplate", templates.RadialBarsOpen)
-		assert.equal(wheel, refs[open].wheel)
-		assert.is_nil(open.scripts.OnClick)
-
-		wheel.attributes["rb-mode"] = mode
-		wheel.attributes["rb-count"] = 8
-		wheel.attributes["rb-position"] = "cursor"
-		local wheelAttributes, triggerAttributes = {}, {}
-		for key, value in pairs(wheel.attributes) do
-			wheelAttributes[key] = value
-		end
-		for key, value in pairs(trigger.attributes) do
-			triggerAttributes[key] = value
-		end
-
-		local calls = { show = 0 }
-		local secureWheel = {
-			IsShown = function()
-				return shown
-			end,
-			Show = function()
-				shown = true
-				calls.show = calls.show + 1
-			end,
-		}
-		setmetatable(secureWheel, {
-			__index = function(_, method)
-				error("unexpected wheel operation: " .. method)
-			end,
-		})
-		local secureOpen = {
-			GetFrameRef = function(_, name)
-				assert.equal(wheel, refs[open][name])
-				return secureWheel
-			end,
-		}
-		local chunk = assert(loadstring(open.attributes._onclick))
-		-- This models the restricted handler, not client combat authorization.
-		setfenv(chunk, setmetatable({ self = secureOpen }, {
-			__index = function(_, name)
-				error("unexpected insecure global: " .. name)
-			end,
-		}))
-		chunk()
-		chunk()
-
-		assert.is_true(shown)
-		assert.same(wheelAttributes, wheel.attributes)
-		assert.same(triggerAttributes, trigger.attributes)
-		return calls
-	end
-
 	for _, mode in ipairs({ "toggle", "hold" }) do
-		it("opens the configured " .. mode .. " wheel without an action", function()
-			assert.equal(1, RunOpen(mode, false).show)
-		end)
-
-		it("leaves an open " .. mode .. " wheel untouched", function()
-			assert.equal(0, RunOpen(mode, true).show)
+		it("opens the edited " .. mode .. " wheel without acting on macro release or repeat", function()
+			local config = ns.GetBarConfig(2)
+			config.mode, config.position, config.key = mode, "cursor", "K"
+			ns.ApplyWhenSafe()
+			wow.inCombat, wow.enforceCombat = true, true
+			wow.Click(open, false)
+			local point = wheel.calls.SetPoint
+			wow.Click(open, false)
+			wow.Key("K", false)
+			assert.is_true(wheel:IsShown())
+			assert.same(point, wheel.calls.SetPoint)
+			assert.same({}, wow.actions)
+			assert.is_false(wow.named.RadialBarsTrigger:GetAttribute("rb-armed"))
+			assert.equal("SecureHandlerClickTemplate", open.template)
+			assert.is_nil(open.scripts.OnClick)
 		end)
 	end
+
+	it("targets the selected edit bar after deferred settings apply", function()
+		ns.ApplyWhenSafe()
+		wow.inCombat = true
+		ns.db.activeBar = 8
+		assert.is_false(ns.ApplyWhenSafe())
+		wow.Click(open, false)
+		assert.is_true(wheel:IsShown())
+		assert.is_false(ns.Wheel.instances[8].frame:IsShown())
+		wow.inCombat = false
+		wow.Fire("PLAYER_REGEN_ENABLED")
+		wow.Click(open, false)
+		assert.is_false(wheel:IsShown())
+		assert.is_true(ns.Wheel.instances[8].frame:IsShown())
+		assert.same({}, wow.actions)
+	end)
 end)
