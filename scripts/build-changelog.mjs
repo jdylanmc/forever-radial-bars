@@ -15,6 +15,7 @@ export function parseChangelog(markdown) {
   let release;
   let section;
   let entry;
+  let paragraphBreak = false;
   for (const line of markdown.split(/\r?\n/)) {
     const version = line.match(/^## (.+)$/);
     const heading = line.match(/^### (.+)$/);
@@ -34,10 +35,12 @@ export function parseChangelog(markdown) {
       }
       entry = bullet[1].trim();
       section.entries.push(entry);
+      paragraphBreak = false;
     } else if (entry !== undefined && /^\s+\S/.test(line)) {
-      section.entries[section.entries.length - 1] += ' ' + line.trim();
+      section.entries[section.entries.length - 1] += (paragraphBreak ? '\n\n' : ' ') + line.trim();
+      paragraphBreak = false;
     } else if (line.trim() === '') {
-      entry = undefined;
+      paragraphBreak = true;
     }
   }
   return releases;

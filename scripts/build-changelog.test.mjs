@@ -34,3 +34,60 @@ test('renders escaped Lua without Markdown or commit hashes', () => {
   assert.match(lua, /"Plain \\"quoted\\" entry with a \|\| pipe\."/);
   assert.doesNotMatch(lua, /6cb6f11/);
 });
+
+test('preserves separate paragraphs in Changesets summaries and rendered Lua', () => {
+  const markdown = [
+    '## 0.0.2',
+    '### Patch Changes',
+    '- 6cb6f11: First paragraph.',
+    '  ',
+    '  Second paragraph.',
+    '  Wrapped continuation.',
+    '',
+    '',
+    '  Third paragraph.',
+  ].join('\n');
+
+  const releases = parseChangelog(markdown);
+  assert.deepEqual(releases[0].sections[0].entries, [
+    'First paragraph.\n\nSecond paragraph. Wrapped continuation.\n\nThird paragraph.',
+  ]);
+  assert.match(renderLua(releases),
+    /"First paragraph\.\\n\\nSecond paragraph\. Wrapped continuation\.\\n\\nThird paragraph\."/);
+});
+
+test('resets paragraph continuation at bullets, sections, and releases', () => {
+  const markdown = [
+    '## 0.0.2',
+    '### Patch Changes',
+    '- First entry.',
+    '  ',
+    '- Next entry.',
+    '  Immediate continuation.',
+    '  ',
+    '### Minor Changes',
+    '  Not an entry.',
+    '- Minor entry.',
+    '  ',
+    '## 0.0.1',
+    '  Not an entry either.',
+    '- Older entry.',
+    '  Immediate older continuation.',
+  ].join('\n');
+
+  assert.deepEqual(parseChangelog(markdown), [
+    {
+      version: '0.0.2',
+      sections: [
+        { title: 'Patch Changes', entries: ['First entry.', 'Next entry. Immediate continuation.'] },
+        { title: 'Minor Changes', entries: ['Minor entry.'] },
+      ],
+    },
+    {
+      version: '0.0.1',
+      sections: [
+        { title: 'Changes', entries: ['Older entry. Immediate older continuation.'] },
+      ],
+    },
+  ]);
+});
