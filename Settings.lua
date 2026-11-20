@@ -185,6 +185,7 @@ for _, spec in ipairs({
 	{ "Margin (backdrop around icons)", "margin", 2 },
 	{ "Center size (dead zone)", "hubSize", 0.05, Percent },
 	{ "Slice gap", "gap", 1 },
+	{ "Slice icon zoom", "sliceIconZoom", 0.05, Percent },
 	{ "Backdrop opacity", "backdropAlpha", 0.05, Percent },
 	{ "Icon opacity", "iconAlpha", 0.05, Percent },
 }) do
@@ -292,6 +293,9 @@ function widgets.Refresh()
 	end
 	for _, slider in ipairs(widgets.sliders) do
 		slider:SetValue(config[slider.key])
+		if slider.key == "sliceIconZoom" then
+			slider:SetEnabled(config.shape == "slice")
+		end
 	end
 	refreshing = false
 

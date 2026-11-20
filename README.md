@@ -34,7 +34,13 @@ Scroll within the settings panel to reach all controls when the window is short.
   Radial slice (pie wedges; the whole wedge is clickable).
 - **Sliders:** buttons shown (first 4-12 of the bar), icon size, spacing
   (distance from center), margin (backdrop around icons), center size (dead
-  zone and slice hub), slice gap, backdrop opacity (0 hides it), icon opacity.
+  zone and slice hub), slice gap, slice icon zoom, backdrop opacity (0 hides
+  it), icon opacity.
+- **Slice icon zoom:** Radial slice artwork fills its pie wedge. Zoom enlarges
+  the artwork within that fixed wedge (default 115%, range 100-200%); the
+  sides, circular rim, and center Cancel zone clip it. The control is disabled
+  for Circle and Square; their icons are unchanged. Slice gaps remain visible
+  over the artwork.
 - **Show description in center:** the selected ability's name always shows in
   the center; its description shows too when the center is at least about 100
   pixels wide (raise **Center size** or **Spacing**).
@@ -87,6 +93,26 @@ busted
 npm run test:scripts
 npm run changelog:check
 ```
+
+| File | Role |
+| --- | --- |
+| `Core.lua` | Saved settings, bar-to-slot map, combat-safe apply |
+| `Wheel.lua` | Secure wheel, slot buttons, hotkey trigger, visuals |
+| `Settings.lua` | Options page and key capture |
+| `Media/*.tga` | Textures: slices for 4-12 slots, inverse hub mask, pointer, blank cursor, addon-list icon |
+| `art/` | Icon source art, CurseForge avatar, hub-mask generator (not packaged) |
+
+Slice artwork uses native `MaskTexture` objects: the existing wedge alpha
+textures clip the sides and outer rim; `SliceHubMask.tga` cuts out the center.
+Zoom changes only the artwork rectangle, not those masks or the hit target.
+The selector accepts the full circular wedge outside the Cancel zone, not
+the corners of the wheel's rectangular frame. Hold mode still selects by
+direction even beyond the rim.
+
+The mask APIs are documented in the
+[Forever 1.60.1 (70959) client source](https://github.com/Gethe/wow-ui-source/tree/3d8abb1da73acd38e412e24fb3f99454a6392346/Interface/AddOns/Blizzard_APIDocumentationGenerated).
+Regenerate the inverse hub asset with `python art/generate-hub-mask.py`.
+Rendering-call and texture-alpha tests do not replace an in-game visual check.
 
 ## Planned
 

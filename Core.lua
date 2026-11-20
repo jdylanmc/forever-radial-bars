@@ -29,6 +29,7 @@ ns.LIMITS = {
 	gap = { 2, 0, 8 },
 	backdropAlpha = { 0.55, 0, 1 },
 	iconAlpha = { 1, 0.1, 1 },
+	sliceIconZoom = { 1.15, 1, 2 },
 }
 
 -- Slot index (1 = up, clockwise) for an offset from the wheel center, or nil
