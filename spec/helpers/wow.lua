@@ -71,6 +71,14 @@ local function NewObject(kind, parent)
 					return self.width
 				elseif method == "GetHeight" then
 					return self.height
+				elseif method == "GetStringHeight" then
+					local text = self.calls.SetText and tostring(self.calls.SetText[1]) or ""
+					return 12 * math.ceil(#text * 5 / math.max(1, self.width))
+				elseif method == "GetVerticalScroll" then
+					return self.calls.SetVerticalScroll and self.calls.SetVerticalScroll[1] or 0
+				elseif method == "GetVerticalScrollRange" then
+					local child = self.calls.SetScrollChild and self.calls.SetScrollChild[1]
+					return child and math.max(0, child:GetHeight() - self.height) or 0
 				elseif method == "SetScale" then
 					self.scale = ...
 				elseif method == "GetEffectiveScale" then

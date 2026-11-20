@@ -30,7 +30,6 @@ local sectionOrder = {}
 
 local function AddRow(section, region, gap, layout)
 	section.rows[#section.rows + 1] = { region = region, gap = gap or 8, layout = layout }
-	section.finalContent = region
 	return region
 end
 
@@ -38,7 +37,9 @@ local function Label(section, text, template, gap)
 	local label = section:CreateFontString(nil, "ARTWORK", template or "GameFontHighlight")
 	label:SetJustifyH("LEFT")
 	label:SetText(text)
-	return AddRow(section, label, gap)
+	return AddRow(section, label, gap, function()
+		label:SetHeight(label:GetStringHeight())
+	end)
 end
 
 local function Section(title)
@@ -300,32 +301,28 @@ Checkbox(visibility, "Show description in center",
 
 local function UpdateLayout()
 	panel:SetWidth(scroll:GetWidth())
-	local top = panel:GetTop()
-	if not top then
-		return
-	end
 	local width = math.max(1, panel:GetWidth() - 32)
 	intro:SetWidth(width)
-	local previous = intro
+	local contentHeight = 16 + header:GetStringHeight() + 8 + intro:GetStringHeight()
 	for _, section in ipairs(sectionOrder) do
+		contentHeight = contentHeight + 24
 		section:ClearAllPoints()
-		section:SetPoint("TOPLEFT", previous, "BOTTOMLEFT", 0, -24)
+		section:SetPoint("TOPLEFT", panel, "TOPLEFT", 16, -contentHeight)
 		section:SetWidth(width)
-		local last
+		local sectionHeight = 0
 		for _, row in ipairs(section.rows) do
 			local region = row.region
+			sectionHeight = sectionHeight + row.gap
 			region:ClearAllPoints()
 			region:SetWidth(width)
-			region:SetPoint("TOPLEFT", last or section, last and "BOTTOMLEFT" or "TOPLEFT", 0, -row.gap)
+			region:SetPoint("TOPLEFT", section, "TOPLEFT", 0, -sectionHeight)
 			if row.layout then row.layout(width) end
-			last = region
+			sectionHeight = sectionHeight + region:GetHeight()
 		end
-		local bottom = section.finalContent:GetBottom()
-		if not bottom then return end
-		section:SetHeight(section:GetTop() - bottom)
-		previous = section
+		section:SetHeight(sectionHeight)
+		contentHeight = contentHeight + sectionHeight
 	end
-	panel:SetHeight(top - previous:GetBottom() + 16)
+	panel:SetHeight(contentHeight + 16)
 	scroll:UpdateScrollChildRect()
 	scroll:SetVerticalScroll(math.min(scroll:GetVerticalScroll(), scroll:GetVerticalScrollRange()))
 end

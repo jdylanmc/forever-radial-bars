@@ -42,6 +42,9 @@ wheels and hotkeys; only one opens at a time. Bar 1 uses fixed action slots
   Restricted calls scrub framehandle varargs: pass scalar bar IDs and resolve
   preinstalled frame refs inside the coordinator. Framehandle-valued ownership
   attributes are supported; they are not equivalent to varargs.
+- **Settings layout.** Measure wrapped text and row heights before sizing their
+  sections. Zero-height sections may have no absolute rectangle; never require
+  a descendant's absolute coordinates to determine its parent's height.
 - **Verify APIs** against the Forever UI source
   (`Gethe/wow-ui-source`, branch `forever`) before using them. Retail and
   Classic Era docs do not always apply.
