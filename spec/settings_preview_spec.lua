@@ -186,6 +186,51 @@ describe("embedded settings preview", function()
 		end
 	end)
 
+	it("hits a visible square corner even when a different angular sector is nearer", function()
+		config.shape, config.count, config.radius, config.iconSize = "square", 8, 110, 72
+		preview:Refresh()
+		Hover(-33, 76)
+		assert.equal("Spell 161", title.calls.SetText[1])
+		assert.is_true(slots[1].highlight:IsShown())
+		assert.is_false(slots[8].highlight:IsShown())
+	end)
+
+	it("uses slot order consistently where square or circle icons overlap", function()
+		config.count, config.radius, config.iconSize = 12, 60, 72
+		for _, shape in ipairs({ "square", "circle" }) do
+			config.shape = shape
+			preview:Refresh()
+			Hover(-20, 60)
+			assert.equal("Spell 161", title.calls.SetText[1])
+			assert.is_true(slots[1].highlight:IsShown())
+			assert.is_false(slots[12].highlight:IsShown())
+		end
+	end)
+
+	it("skips event and hover work while only an ancestor is hidden, then refreshes on reopen", function()
+		local artwork, geometry, scale = slots[1].icon.calls.SetTexture, surface.calls.SetSize, surface.calls.SetScale
+		viewport:Hide()
+		assert.is_true(preview:IsShown())
+		assert.is_false(preview:IsVisible())
+		ns.db.activeBar = 3
+		_G.C_ActionBar.GetActionTexture = function(action) return "ChangedTexture" .. action end
+		for _, event in ipairs({
+			"ACTIONBAR_SLOT_CHANGED", "ACTIONBAR_UPDATE_STATE", "SPELLS_CHANGED", "UPDATE_MACROS",
+			"UPDATE_SHAPESHIFT_FORM", "BAG_UPDATE_DELAYED", "PLAYER_REGEN_ENABLED",
+		}) do wow.Fire(event) end
+		Hover(0, 110)
+		assert.equal(artwork, slots[1].icon.calls.SetTexture)
+		assert.equal(geometry, surface.calls.SetSize)
+		assert.equal(scale, surface.calls.SetScale)
+		assert.equal("Hover to inspect", title.calls.SetText[1])
+		viewport:Show()
+		preview.scripts.OnShow(preview)
+		assert.is_true(preview:IsVisible())
+		assert.equal("ChangedTexture49", slots[1].icon.calls.SetTexture[1])
+		Hover(0, 110)
+		assert.equal("Spell 149", title.calls.SetText[1])
+	end)
+
 	it("reflects appearance, description, action events and clears hover on lifecycle and viewport changes", function()
 		config.radius, config.iconSize, config.margin, config.hubSize = 200, 60, 30, 0.8
 		config.backdropAlpha, config.iconAlpha, config.gap = 0.25, 0.5, 7

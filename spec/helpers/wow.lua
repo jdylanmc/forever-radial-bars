@@ -50,7 +50,9 @@ local function NewObject(kind, parent)
 				elseif method == "SetShown" then
 					self.shown = (...) and true or false
 				elseif method == "IsShown" then
-					return self.shown and (not parent or parent:IsShown())
+					return self.shown
+				elseif method == "IsVisible" then
+					return self.shown and (not parent or parent:IsVisible())
 				elseif method == "IsMouseOver" then
 					return rawget(self, "mouseOver") == true
 				elseif method == "AddMaskTexture" then

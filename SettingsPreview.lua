@@ -150,7 +150,7 @@ function ns.CreateSettingsPreview(parent, viewport)
 	end
 
 	preview:SetScript("OnUpdate", function(self)
-		if not config then return end
+		if not config or not self:IsVisible() then return end
 		local index, hot
 		if self:IsMouseOver() and viewport:IsMouseOver() then
 			local x, y = GetCursorPosition()
@@ -160,18 +160,22 @@ function ns.CreateSettingsPreview(parent, viewport)
 			local dx, dy = x / scale - cx, y / scale - cy
 			local distance = dx * dx + dy * dy
 			hot = distance < dead * dead
-			if not hot and (config.shape ~= "slice" or distance <= outer * outer) then
-				local candidate = ns.DirectionIndex(dx, dy, dead, config.count)
+			if not hot then
 				if config.shape == "slice" then
-					index = candidate
+					if distance <= outer * outer then
+						index = ns.DirectionIndex(dx, dy, dead, config.count)
+					end
 				else
-					local angle = math.rad(ns.Visuals.SlotAngle(candidate, config.count))
-					local sx, sy = dx - config.radius * math.cos(angle), dy - config.radius * math.sin(angle)
-					local half = config.iconSize / 2
-					if config.shape == "circle" then
-						if sx * sx + sy * sy <= half * half then index = candidate end
-					elseif math.abs(sx) <= half and math.abs(sy) <= half then
-						index = candidate
+					-- Match slot order for overlapping icons, not the nearest angular sector.
+					for candidate, slot in ipairs(slots) do
+						if slot:IsShown() then
+							local angle = math.rad(ns.Visuals.SlotAngle(candidate, config.count))
+							local sx, sy = dx - config.radius * math.cos(angle), dy - config.radius * math.sin(angle)
+							local half = config.iconSize / 2
+							local hit = config.shape == "circle" and sx * sx + sy * sy <= half * half
+								or config.shape == "square" and math.abs(sx) <= half and math.abs(sy) <= half
+							if hit then index = candidate; break end
+						end
 					end
 				end
 			end
@@ -189,7 +193,7 @@ function ns.CreateSettingsPreview(parent, viewport)
 		preview:RegisterEvent(event)
 	end
 	preview:SetScript("OnEvent", function(self)
-		if self:IsShown() then self:Refresh() end
+		if self:IsVisible() then self:Refresh() end
 	end)
 	return preview
 end
