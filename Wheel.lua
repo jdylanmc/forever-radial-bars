@@ -624,6 +624,7 @@ function Wheel:SetPreview(enabled)
 	else
 		wheel:StopMovingOrSizing()
 		wheel:Hide()
+		self:Apply()
 	end
 	if ns.OnPreviewChanged then
 		ns.OnPreviewChanged()

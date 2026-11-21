@@ -97,6 +97,39 @@ describe("Hold cursor ownership", function()
 		assert.is_false(wow.cursorHidden)
 	end)
 
+	for _, closing in ipairs({ "preview button", "settings close" }) do
+		for _, combat in ipairs({ false, true }) do
+			it("resumes hidden Hold ownership after " .. closing .. (combat and " in combat" or " out of combat"), function()
+				local canvas
+				if closing == "settings close" then
+					_G.Settings.RegisterCanvasLayoutCategory = function(frame)
+						canvas = frame
+						return {}
+					end
+					wow.Load("Changelog.lua", "Settings.lua")
+				end
+				ns.Wheel:SetPreview(true)
+				Tick("world")
+				assert.is_false(wow.cursorHidden)
+				if canvas then canvas.scripts.OnHide() else ns.Wheel:SetPreview(false) end
+				assert.is_false(ns.Wheel:IsPreviewing())
+				assert.is_false(wheel:IsShown())
+				if combat then Combat() end
+				wow.Key("H", true)
+				Tick("wheel")
+				assert.is_true(wow.cursorHidden)
+				Tick("world")
+				assert.is_true(wow.cursorHidden, "preview close must restore outside-wheel ownership")
+				wow.WorldClick("RightButton")
+				assert.same({ "RightButton" }, wow.worldClicks)
+				wow.Key("ESCAPE", false)
+				wow.Key("H", false)
+				assert.is_false(wow.cursorHidden)
+				assert.same({}, wow.actions)
+			end)
+		end
+	end
+
 	it("transfers hidden-cursor ownership between Hold wheels without letting a stale release reset it", function()
 		local other = ns.GetBarConfig(3)
 		other.key, other.mode, other.hideCursor = "B", "hold", true
