@@ -4,13 +4,36 @@ local CIRCLE_MASK = "Interface\\CharacterFrame\\TempPortraitAlphaMask"
 local SQUARE_SWIPE = "Interface\\Buttons\\WHITE8X8"
 local EMPTY_SLOT = "Interface\\Buttons\\UI-EmptySlot-Disabled"
 local WEDGE_PATH = "Interface\\AddOns\\RadialBars\\Media\\Wedge"
-local BLANK_CURSOR = "Interface\\AddOns\\RadialBars\\Media\\Blank"
+local BLANK_CURSOR = "Interface\\AddOns\\RadialBars\\Media\\Blank.blp"
 local POINTER = "Interface\\AddOns\\RadialBars\\Media\\Pointer"
 local SENSOR_SIZE = 4096
 local MIN_DEAD_ZONE = 12
 
-local Wheel = {}
-ns.Wheel = Wheel
+local Wheels = { instances = {} }
+ns.Wheel = Wheels
+local coordinator = CreateFrame("Frame", nil, UIParent, "SecureHandlerBaseTemplate")
+coordinator:SetAttribute("open", [[
+	local bar = ...
+	local wheel = self:GetFrameRef("wheel" .. bar)
+	local previous = self:GetAttribute("current")
+	if previous and previous ~= wheel then previous:Hide() end
+	if not wheel:IsShown() then wheel:Show() end
+]])
+
+local close = CreateFrame("Button", "RadialBarsClose", UIParent, "SecureHandlerClickTemplate")
+close:RegisterForClicks("AnyUp")
+SecureHandlerSetFrameRef(close, "coordinator", coordinator)
+close:SetAttribute("_onclick", [[
+	local wheel = self:GetFrameRef("coordinator"):GetAttribute("current")
+	if wheel then wheel:Hide() end
+]])
+
+local open = CreateFrame("Button", "RadialBarsOpen", UIParent, "SecureHandlerClickTemplate")
+open:RegisterForClicks("AnyUp")
+SecureHandlerSetFrameRef(open, "coordinator", coordinator)
+open:SetAttribute("_onclick", [[
+	self:GetFrameRef("coordinator"):RunAttribute("open", self:GetAttribute("rb-bar"))
+]])
 
 local CreateCircleMask = ns.Visuals.CircleMask
 local SlotAngle = ns.Visuals.SlotAngle
@@ -36,19 +59,31 @@ local PICK_DIRECTION = [[
 
 ns.PICK_DIRECTION = PICK_DIRECTION
 
+local function CreateWheel(bar)
+local Wheel = {}
+local function Name(part)
+	return "RadialBars" .. part .. (bar == ns.DEFAULT_BAR and "" or "Bar" .. bar)
+end
+
 -- Protected header: shown and hidden from secure snippets so it works in combat.
-local wheel = CreateFrame("Frame", "RadialBarsWheel", UIParent, "SecureHandlerStateTemplate, SecureHandlerShowHideTemplate")
+local wheel = CreateFrame("Frame", Name("Wheel"), UIParent, "SecureHandlerStateTemplate, SecureHandlerShowHideTemplate")
 wheel:SetPoint("CENTER")
 wheel:SetFrameStrata("DIALOG")
 wheel:SetClampedToScreen(true)
 wheel:SetMovable(true)
 wheel:Hide()
+SecureHandlerSetFrameRef(wheel, "coordinator", coordinator)
+wheel:SetAttribute("rb-bar", bar)
 
-local sensor = CreateFrame("Frame", "RadialBarsSensor", wheel, "SecureFrameTemplate")
+local sensor = CreateFrame("Frame", Name("Sensor"), wheel, "SecureFrameTemplate")
 sensor:SetSize(SENSOR_SIZE, SENSOR_SIZE)
 sensor:SetPoint("CENTER")
 SecureHandlerSetFrameRef(wheel, "sensor", sensor)
 wheel:SetAttribute("rb-sensor", SENSOR_SIZE)
+
+-- Hover ownership keeps WorldFrame from overriding the cursor outside the wheel.
+-- Motion only: do not intercept world clicks or camera buttons.
+local cursorOwner = CreateFrame("Frame", Name("CursorOwner"), wheel, "SecureFrameTemplate")
 
 local background = wheel:CreateTexture(nil, "BACKGROUND")
 background:SetPoint("CENTER")
@@ -109,7 +144,7 @@ local MIN_DESCRIPTION_WIDTH = 100
 local slots = {}
 
 for index = 1, ns.NUM_SLOTS do
-	local button = CreateFrame("Button", "RadialBarsSlot" .. index, wheel, "SecureActionButtonTemplate")
+	local button = CreateFrame("Button", Name("Slot" .. index), wheel, "SecureActionButtonTemplate")
 	button:RegisterForClicks("AnyUp")
 	button:SetAttribute("type", "action")
 
@@ -160,7 +195,7 @@ end
 
 -- Radial slice shape: one secure button over the whole wheel picks the slice
 -- by angle, so the full wedge is clickable. Slot buttons become display only.
-local selector = CreateFrame("Button", "RadialBarsSelector", wheel, "SecureActionButtonTemplate")
+local selector = CreateFrame("Button", Name("Selector"), wheel, "SecureActionButtonTemplate")
 selector:SetAllPoints()
 selector:SetFrameLevel(wheel:GetFrameLevel() + 16)
 selector:RegisterForClicks("AnyUp")
@@ -272,6 +307,13 @@ end
 
 local cursorHidden = false
 
+local function HideCursor()
+	if wheel:GetAttribute("rb-mode") == "hold" and wheel.hideCursor and not Wheel:IsPreviewing() then
+		SetCursor(BLANK_CURSOR)
+		cursorHidden = true
+	end
+end
+
 wheel:SetScript("OnUpdate", function()
 	local hold = wheel:GetAttribute("rb-mode") == "hold"
 	local slice = wheel:GetAttribute("rb-shape") == "slice"
@@ -285,7 +327,7 @@ wheel:SetScript("OnUpdate", function()
 	else
 		index = HoveredSlot()
 	end
-	SetSelected(index, hold or inDeadZone or (not slice and ns.cancelButton:IsMouseOver()))
+	SetSelected(index, hold or inDeadZone or (not slice and Wheel.cancelButton:IsMouseOver()))
 
 	if angle then
 		local distance = wheel:GetAttribute("rb-dead") + 10
@@ -298,41 +340,23 @@ wheel:SetScript("OnUpdate", function()
 	end
 
 	-- The game restores its cursor as the mouse moves, so reapply each frame.
-	if hold and wheel.hideCursor and not Wheel:IsPreviewing() then
-		SetCursor(BLANK_CURSOR)
-		cursorHidden = true
-	end
+	HideCursor()
 end)
 
 -- Center "Cancel": clicking it closes the wheel. In Hold mode, releasing with
 -- the cursor in the center does the same (PICK_DIRECTION returns nil there).
-local cancelButton = CreateFrame("Button", "RadialBarsCancel", wheel, "SecureHandlerClickTemplate")
+local cancelButton = CreateFrame("Button", Name("Cancel"), wheel, "SecureHandlerClickTemplate")
 cancelButton:SetPoint("CENTER")
 cancelButton:SetFrameLevel(wheel:GetFrameLevel() + 15)
 cancelButton:RegisterForClicks("AnyUp")
 SecureHandlerSetFrameRef(cancelButton, "wheel", wheel)
 cancelButton:SetAttribute("_onclick", [[ self:GetFrameRef("wheel"):Hide() ]])
-ns.cancelButton = cancelButton
-
--- Escape closes the wheel; bound only while the wheel is open.
-local close = CreateFrame("Button", "RadialBarsClose", UIParent, "SecureHandlerClickTemplate")
-close:RegisterForClicks("AnyUp")
-SecureHandlerSetFrameRef(close, "wheel", wheel)
-close:SetAttribute("_onclick", [[ self:GetFrameRef("wheel"):Hide() ]])
-
--- A separate secure endpoint keeps macros independent of hotkey toggle/hold.
-local open = CreateFrame("Button", "RadialBarsOpen", UIParent, "SecureHandlerClickTemplate")
-open:RegisterForClicks("AnyUp")
-SecureHandlerSetFrameRef(open, "wheel", wheel)
-open:SetAttribute("_onclick", [[
-	local wheel = self:GetFrameRef("wheel")
-	if not wheel:IsShown() then
-		wheel:Show()
-	end
-]])
+Wheel.cancelButton = cancelButton
 
 -- Position on every open, so "cursor" follows the mouse even in combat.
 wheel:SetAttribute("_onshow", [[
+	local coordinator = self:GetFrameRef("coordinator")
+	coordinator:SetAttribute("current", self)
 	self:ClearAllPoints()
 	local position = self:GetAttribute("rb-position")
 	if position == "cursor" then
@@ -346,31 +370,45 @@ wheel:SetAttribute("_onshow", [[
 ]])
 wheel:SetAttribute("_onhide", [[
 	self:ClearBindings()
+	self:GetFrameRef("trigger"):SetAttribute("rb-armed", false)
+	local coordinator = self:GetFrameRef("coordinator")
+	if coordinator:GetAttribute("current") == self then
+		coordinator:SetAttribute("current", nil)
+	end
 ]])
 
 -- The hotkey clicks this button. Toggle mode opens and closes the wheel on key
 -- down. Hold mode opens on key down and, on key up, runs the slot in the
 -- cursor's direction through this button's own secure action.
-local trigger = CreateFrame("Button", "RadialBarsTrigger", UIParent, "SecureActionButtonTemplate")
+local trigger = CreateFrame("Button", Name("Trigger"), UIParent, "SecureActionButtonTemplate")
 trigger:RegisterForClicks("AnyDown", "AnyUp")
 trigger:SetAttribute("useOnKeyDown", false)
+SecureHandlerSetFrameRef(wheel, "trigger", trigger)
 SecureHandlerWrapScript(trigger, "OnClick", wheel, [[
 	local mode = owner:GetAttribute("rb-mode")
+	if down then
+		if self:GetAttribute("rb-down") then return false end
+		self:SetAttribute("rb-down", true)
+	else
+		self:SetAttribute("rb-down", false)
+	end
+	if owner:GetAttribute("rb-preview") then return false end
 	if mode ~= "hold" then
 		if down then
 			if owner:IsShown() then
 				owner:Hide()
 			else
-				owner:Show()
+				owner:GetFrameRef("coordinator"):RunAttribute("open", owner:GetAttribute("rb-bar"))
 			end
 		end
 		return false
 	end
 	if down then
-		owner:Show()
+		owner:GetFrameRef("coordinator"):RunAttribute("open", owner:GetAttribute("rb-bar"))
+		self:SetAttribute("rb-armed", true)
 		return false
 	end
-	if not owner:IsShown() then
+	if not self:GetAttribute("rb-armed") or not owner:IsShown() then
 		return false
 	end
 	]] .. PICK_DIRECTION .. [[
@@ -395,13 +433,13 @@ local overlayText = overlay:CreateFontString(nil, "OVERLAY", "GameFontHighlightS
 overlayText:SetPoint("TOP", title, "BOTTOM", 0, -4)
 
 overlay:SetScript("OnMouseDown", function()
-	if ns.GetBarConfig(ns.db.activeBar).position == "fixed" and not InCombatLockdown() then
+	if ns.GetBarConfig(bar).position == "fixed" and not InCombatLockdown() then
 		wheel:StartMoving()
 	end
 end)
 overlay:SetScript("OnMouseUp", function()
 	wheel:StopMovingOrSizing()
-	local config = ns.GetBarConfig(ns.db.activeBar)
+	local config = ns.GetBarConfig(bar)
 	if config.position ~= "fixed" then
 		return
 	end
@@ -472,7 +510,7 @@ local function Layout(config)
 	hub:SetSize(deadZone * 2, deadZone * 2)
 	hub:SetAlpha(math.max(config.backdropAlpha, 0.6))
 	cancelHighlight:SetSize(deadZone * 2, deadZone * 2)
-	ns.cancelButton:SetSize(deadZone * 2, deadZone * 2)
+	cancelButton:SetSize(deadZone * 2, deadZone * 2)
 
 	for index = 1, ns.NUM_SLOTS do
 		local shown = slice and index <= count
@@ -524,14 +562,24 @@ local function Layout(config)
 	description:SetWidth(centerWidth)
 	wheel.showDescription = config.showDescription and centerWidth >= MIN_DESCRIPTION_WIDTH
 	wheel.hideCursor = config.hideCursor
+	cursorOwner:SetAllPoints(UIParent)
+	cursorOwner:EnableMouse(false)
+	cursorOwner:SetPropagateMouseClicks(true)
+	cursorOwner:EnableMouseMotion(config.mode == "hold" and config.hideCursor and not previewing)
 end
 
 -- Out of combat only (see ns.ApplyWhenSafe).
+local applying, boundKey = false, nil
 function Wheel:Apply()
-	local bar = ns.db.activeBar
 	local config = ns.GetBarConfig(bar)
 
+	applying = true
 	wheel:Hide()
+	trigger:SetAttribute("rb-armed", false)
+	if config.key ~= boundKey then
+		trigger:SetAttribute("rb-down", false)
+		boundKey = config.key
+	end
 	for index, button in ipairs(slots) do
 		button:SetAttribute("action", ns.SlotFor(bar, index))
 	end
@@ -544,7 +592,7 @@ function Wheel:Apply()
 
 	ClearOverrideBindings(trigger)
 	if config.key then
-		SetOverrideBindingClick(trigger, true, config.key, "RadialBarsTrigger", "LeftButton")
+		SetOverrideBindingClick(trigger, true, config.key, Name("Trigger"), "LeftButton")
 	end
 
 	if previewing then
@@ -552,6 +600,7 @@ function Wheel:Apply()
 		wheel:Show()
 	end
 	self:Refresh()
+	applying = false
 end
 
 function Wheel:IsPreviewing()
@@ -568,12 +617,14 @@ function Wheel:SetPreview(enabled)
 		return
 	end
 	previewing = enabled
+	wheel:SetAttribute("rb-preview", previewing)
 	overlay:SetShown(previewing)
 	if previewing then
 		self:Apply()
 	else
 		wheel:StopMovingOrSizing()
 		wheel:Hide()
+		self:Apply()
 	end
 	if ns.OnPreviewChanged then
 		ns.OnPreviewChanged()
@@ -582,6 +633,7 @@ end
 
 wheel:HookScript("OnShow", function()
 	Wheel:Refresh()
+	HideCursor()
 end)
 
 wheel:HookScript("OnHide", function()
@@ -594,7 +646,7 @@ wheel:HookScript("OnHide", function()
 end)
 
 wheel:HookScript("OnHide", function()
-	if previewing and not InCombatLockdown() then
+	if previewing and not applying and not InCombatLockdown() then
 		Wheel:SetPreview(false)
 	end
 end)
@@ -617,3 +669,44 @@ updates:SetScript("OnEvent", function()
 		Wheel:Refresh()
 	end
 end)
+Wheel.frame = wheel
+return Wheel
+end
+
+for bar = 1, 8 do
+	Wheels.instances[bar] = CreateWheel(bar)
+	SecureHandlerSetFrameRef(coordinator, "wheel" .. bar, Wheels.instances[bar].frame)
+end
+
+function Wheels:Apply()
+	local preview = self:IsPreviewing()
+	for bar = 1, 8 do self.instances[bar].frame:Hide() end
+	if self.previewBar and self.previewBar ~= ns.db.activeBar then
+		self.instances[self.previewBar]:SetPreview(false)
+		self.previewBar = nil
+	end
+	for bar = 1, 8 do
+		self.instances[bar]:Apply()
+	end
+	open:SetAttribute("rb-bar", ns.db.activeBar)
+	if preview then self:SetPreview(true) end
+end
+
+function Wheels:IsPreviewing()
+	return self.previewBar ~= nil and self.instances[self.previewBar]:IsPreviewing()
+end
+
+function Wheels:SetPreview(enabled)
+	if InCombatLockdown() then return end
+	if self.previewBar and (not enabled or self.previewBar ~= ns.db.activeBar) then
+		self.instances[self.previewBar]:SetPreview(false)
+		self.previewBar = nil
+	end
+	if enabled then
+		for bar = 1, 8 do
+			if bar ~= ns.db.activeBar then self.instances[bar].frame:Hide() end
+		end
+		self.previewBar = ns.db.activeBar
+		self.instances[self.previewBar]:SetPreview(true)
+	end
+end

@@ -6,6 +6,7 @@ ns.DEFAULT_BAR = 2
 -- Edit Mode "Action Bar N" to action page; slot = (page - 1) * 12 + index.
 -- Pages from Blizzard_ActionBar/Shared/MultiActionBars.lua (Forever 1.60.1).
 ns.BARS = {
+	[1] = { name = "Action Bar 1 (fixed slots 1-12)", page = 1 },
 	[2] = { name = "Action Bar 2", page = 6 },
 	[3] = { name = "Action Bar 3", page = 5 },
 	[4] = { name = "Action Bar 4", page = 3 },
@@ -42,6 +43,45 @@ function ns.DirectionIndex(dx, dy, dead, count)
 	local step = 360 / count
 	local offset = (90 - math.deg(math.atan2(dy, dx))) % 360
 	return math.floor((offset + step / 2) / step) % count + 1
+end
+
+function ns.AssignBarKey(bar, key)
+	local config = ns.GetBarConfig(bar)
+	if key then
+		for other = 1, 8 do
+			local previous = ns.db.bars[other]
+			if other ~= bar and previous and previous.key == key then
+				previous.key = nil
+			end
+		end
+	end
+	config.key = key
+end
+
+local function DeepCopy(value)
+	if type(value) ~= "table" then return value end
+	local copy = {}
+	for key, child in pairs(value) do
+		copy[key] = DeepCopy(child)
+	end
+	return copy
+end
+
+function ns.CopyBarSettings(source, destination)
+	if source == destination or not ns.BARS[source] or not ns.BARS[destination] then
+		return false
+	end
+	local from, to = ns.GetBarConfig(source), ns.GetBarConfig(destination)
+	local keys = {
+		"mode", "position", "shape", "x", "y", "showDescription", "hideCursor",
+	}
+	for key in pairs(ns.LIMITS) do keys[#keys + 1] = key end
+	for _, key in ipairs(keys) do
+		to[key] = DeepCopy(from[key])
+	end
+	ns.ApplyWhenSafe()
+	if ns.OnSettingsChanged then ns.OnSettingsChanged() end
+	return true
 end
 
 function ns.SlotFor(bar, index)
@@ -102,12 +142,28 @@ end
 local function InitDB()
 	RadialBarsDB = RadialBarsDB or {}
 	local db = RadialBarsDB
-	db.version = 1
 	db.bars = db.bars or {}
 	if not ns.BARS[db.activeBar] then
 		db.activeBar = ns.DEFAULT_BAR
 	end
 	ns.db = db
+	-- The old selected bar was the only operational binding. Keep its ownership
+	-- when upgrading duplicate keys; otherwise the lowest bar wins.
+	local owners = {}
+	local selected = db.activeBar
+	local selectedKey = ns.GetBarConfig(selected).key
+	if selectedKey then owners[selectedKey] = selected end
+	for bar = 1, 8 do
+		local config = ns.GetBarConfig(bar)
+		if config.key then
+			if owners[config.key] and owners[config.key] ~= bar then
+				config.key = nil
+			else
+				owners[config.key] = bar
+			end
+		end
+	end
+	db.version = 2
 end
 
 local pendingApply = false

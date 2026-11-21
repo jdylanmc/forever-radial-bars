@@ -4,8 +4,14 @@
 
 Radial action bars for World of Warcraft: Forever.
 
-Turns one action bar (2-8) into a circular wheel, opened by a hotkey at screen
-center or at the mouse cursor. The original Blizzard bar stays visible; Action Bar 1 is not touched.
+Gives each action bar (1-8) its own circular wheel and hotkey, opened at screen
+center, the mouse cursor, or a fixed position. Only one wheel opens at a time:
+opening another closes the previous wheel first. Original Blizzard bars,
+their actions, and native bindings remain unchanged apart from temporary hotkey
+overrides.
+
+Bar 1 always uses fixed action slots 1-12, not the current stance, form, or
+action page. It starts unbound.
 
 ## Use
 
@@ -17,21 +23,34 @@ Settings are grouped into five sections:
 
 **Action bar**
 
-- Choose which bar (2-8) the wheel shows.
+- Choose which bar (1-8) to **edit**. Other bars keep their settings and working
+  hotkeys; selection does not deactivate them.
+- **Copy settings from:** select a source bar, then click **Copy settings**.
+  Copies all appearance, behavior, and placement settings to the edited bar,
+  but keeps its hotkey (including unbound) and its own actions. The source
+  stays unchanged. Copying a bar to itself is disabled.
 
 **Activation**
 
 - **Hotkey:** click, then press a key with optional Alt, Ctrl, Shift. It
   overrides any game binding on that key while Radial Bars is loaded.
-  **Clear** removes the wheel's hotkey.
+  **Clear** removes that wheel's override, restoring the original game binding.
+  Assigning a key already used by another radial bar moves it to the edited
+  bar automatically; the previous bar keeps every other setting.
+  Upgrades retain saved bar settings. If legacy bars shared a key, the previously
+  selected bar keeps it; otherwise the lowest-numbered bar keeps it.
 - **Hotkey behavior:**
   - **Toggle:** press the hotkey to open, click a slot to use it. The wheel
     closes after use; the center **Cancel**, the hotkey again, or Esc closes it.
   - **Hold:** hold the hotkey and push the mouse toward a slot; it highlights
     and its name shows in the center. Release to use it. Releasing in the
     center **Cancel** zone uses nothing.
+    Switching wheels or cancelling invalidates the old held press: releasing
+    it cannot use an action, even after reopening from a macro.
 - **Hide cursor in Hold mode:** hides the cursor while held; a pointer shows
-  the direction instead.
+  the direction instead. Hiding covers the whole viewport, including outside
+  the wheel, and ends when the wheel closes. Previews and Toggle mode keep
+  their normal cursor.
 
 **Placement**
 
@@ -79,7 +98,7 @@ Put this line in a macro and place it on an action bar:
 /click RadialBarsOpen
 ```
 
-With Radial Bars loaded, this opens the currently configured wheel. Repeating
+With Radial Bars loaded, this opens the bar selected for editing. Repeating
 it leaves an open wheel open, without moving it or using a slot. Click a slot
 to use it, or use the center **Cancel** or Esc to close. The macro does not
 simulate the hotkey: even in Hold mode, releasing the macro key uses nothing.
@@ -121,7 +140,7 @@ npm run changelog:check
 | `Visuals.lua` | Shared icon geometry, native slice masks, read-only action labels |
 | `SettingsPreview.lua` | Unprotected, hover-only embedded settings wheel |
 | `Settings.lua` | Options page and key capture |
-| `Media/*.tga` | Textures: slices for 4-12 slots, inverse hub mask, pointer, blank cursor, addon-list icon |
+| `Media/*.tga`, `Media/Blank.blp` | Slice, hub, pointer and icon textures; transparent hardware cursor |
 | `art/` | Icon source art, CurseForge avatar, hub-mask generator (not packaged) |
 
 Slice artwork uses native `MaskTexture` objects: the existing wedge alpha
@@ -134,11 +153,37 @@ direction even beyond the rim.
 The mask APIs are documented in the
 [Forever 1.60.1 (70959) client source](https://github.com/Gethe/wow-ui-source/tree/3d8abb1da73acd38e412e24fb3f99454a6392346/Interface/AddOns/Blizzard_APIDocumentationGenerated).
 Regenerate the inverse hub asset with `python art/generate-hub-mask.py`.
+Regenerate the uncompressed hardware cursor with `python art/generate-blank-cursor.py`.
 Rendering-call and texture-alpha tests do not replace an in-game visual check.
 
-## Planned
+### Manual acceptance
 
-More than one wheel at a time.
+The Lua tests execute a restricted-snippet behavioral model, not the game
+engine's combat authorization. In-game verification is still required on
+Forever, including:
+
+- Bind all eight bars; switch between Hold and Toggle wheels during combat.
+  Check only one wheel is visible and the previous wheel closes first.
+- Hold A, open B, then release A; cancel with Esc or the center, reopen by
+  macro, then release the old key. No stale release may use an action.
+- Check Hold execution on release with both game key-down settings, cursor
+  hiding/restoration, each positioning mode, and fixed bar 1 slots while
+  changing stance, form, and action page.
+- With Hide cursor enabled in Hold mode, move inside and outside the wheel,
+  including viewport edges on ultrawide displays. Check no black square or
+  cursor appears, world clicks and camera buttons still work, and closing or
+  switching restores the appropriate cursor.
+- Clear or move a radial key; verify the original game binding returns.
+  Reload legacy fixture settings and check key ownership and bar settings.
+- Edit and copy settings during combat; the inline preview updates immediately,
+  the protected wheels update afterward, and neither preview uses actions.
+
+Secure coordination uses restricted frame operations verified against the
+[pinned Forever source](https://github.com/Gethe/wow-ui-source/tree/734f065329cff4992835b01a84f210a297db91b6):
+`RestrictedFrames.lua` (`Show`/`Hide`, `SetAttribute`, `ClearBindings`,
+`SetBindingClick`, `RunAttribute`) and `SecureTemplates.lua`
+(`SecureActionButton_OnClick`). Source compatibility does not replace these
+operator checks.
 
 ## Release
 

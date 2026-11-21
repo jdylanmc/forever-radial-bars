@@ -7,12 +7,15 @@ local function TrackLayout()
 		return point:find("TOP") and 0 or (point:find("BOTTOM") and 1 or 0.5)
 	end
 	local function Track(object, kind, parent, template)
-		local rect = { parent = parent, points = {}, width = 16, height = 16, offset = 0, kind = kind, template = template }
+		local size = (kind == "Frame" or kind == "ScrollFrame") and 0 or 16
+		local rect = { parent = parent, points = {}, width = size, height = size, offset = 0, kind = kind, template = template }
 		if kind == "FontString" then
 			rect.width = nil
-			rect.height = template == "GameFontNormalLarge" and 16 or 12
+			rect.fontHeight = template == "GameFontNormalLarge" and 16 or 12
+			rect.height = nil
 		elseif template == "MinimalSliderWithSteppersTemplate" then
-			rect.height = 32
+			-- Pinned Forever MinimalSlider.xml gives this template a 250 x 40 size.
+			rect.width, rect.height = 250, 40
 		end
 		geometry[object] = rect
 		regions[#regions + 1] = object
@@ -42,29 +45,36 @@ local function TrackLayout()
 		function object:GetWidth() return rect.width or #(rect.text or "") * 5 end
 		function object:GetStringHeight()
 			if rect.text == "" then return 0 end
-			return rect.height * math.max(1, math.ceil(#(rect.text or "") * 5 / (rect.width or 300)))
+			return rect.fontHeight * math.max(1, math.ceil(#(rect.text or "") * 5 / (rect.width or 300)))
 		end
 		function object:GetHeight()
 			local first, last = rect.points[1], rect.points[2]
 			if first and last then
-				return first.relative:GetTop() - first.relative:GetHeight() * Edge(first.relativePoint) + first.y
-					- (last.relative:GetTop() - last.relative:GetHeight() * Edge(last.relativePoint) + last.y)
+				assert(first.relative == last.relative, "fixture only supports opposing anchors to the same parent")
+				return first.relative:GetHeight() * (Edge(last.relativePoint) - Edge(first.relativePoint))
+					+ first.y - last.y
 			end
 			if rect.text and rect.width then
-				return self:GetStringHeight()
+				return rect.height or self:GetStringHeight()
 			end
 			return rect.height
 		end
 		function object:GetTop()
+			if self:GetHeight() <= 0 then return end
 			if rect.top then return rect.top end
 			local point = rect.points[1]
-			if not point then return parent and parent:GetTop() or 1000 end
-			local top = point.relative:GetTop() - point.relative:GetHeight() * Edge(point.relativePoint)
+			if not point or (geometry[parent] and not parent:GetTop()) then return end
+			local relativeTop = point.relative:GetTop()
+			if not relativeTop then return end
+			local top = relativeTop - point.relative:GetHeight() * Edge(point.relativePoint)
 				+ point.y + self:GetHeight() * Edge(point.point)
 			local owner = geometry[parent]
 			return top + (owner and owner.child == self and owner.offset or 0)
 		end
-		function object:GetBottom() return self:GetTop() - self:GetHeight() end
+		function object:GetBottom()
+			local top = self:GetTop()
+			return top and top - self:GetHeight()
+		end
 		local function HorizontalEdge(point)
 			return point:find("LEFT") and 0 or (point:find("RIGHT") and 1 or 0.5)
 		end
@@ -163,6 +173,51 @@ describe("settings layout", function()
 		end
 	end)
 
+	it("sizes every initially zero-height section on the first show in a resolved viewport", function()
+		Resize(601, 665)
+		local count = 0
+		for _, region in ipairs(regions) do
+			if geometry[region].parent == geometry[scroll].child and geometry[region].kind == "Frame" then
+				count = count + 1
+				assert.is_true(region:GetHeight() > 0, "section must not wait on its zero-height rectangle")
+				assert.is_number(region:GetTop())
+			end
+		end
+		assert.equal(5, count)
+		assert.is_true(scroll:GetVerticalScrollRange() > 0)
+		scroll:SetVerticalScroll(scroll:GetVerticalScrollRange())
+		assert.is_true(finalNote:GetBottom() >= scroll:GetBottom())
+	end)
+
+	it("measures initially zero-height sections before absolute coordinates resolve and on reopening", function()
+		local sections = {}
+		for _, region in ipairs(regions) do
+			if geometry[region].template == "GameFontNormalLarge" and geometry[region].parent ~= scroll then
+				local section = geometry[region].parent
+				if geometry[section].parent == geometry[scroll].child then
+					sections[#sections + 1] = section
+					assert.equal(0, section:GetHeight())
+					assert.is_nil(section:GetTop())
+				end
+			end
+		end
+		assert.equal(5, #sections)
+		geometry[canvas].top = nil
+		Resize(601, 665)
+		for _, section in ipairs(sections) do
+			assert.is_true(section:GetHeight() > 0, "section must measure without an absolute rectangle")
+		end
+		local content = geometry[scroll].child
+		assert.is_true(content:GetHeight() > scroll:GetHeight())
+		geometry[canvas].top = 1008
+		for _, section in ipairs(sections) do assert.is_number(section:GetTop()) end
+		scroll:SetVerticalScroll(scroll:GetVerticalScrollRange())
+		assert.is_true(finalNote:GetBottom() >= scroll:GetBottom())
+		canvas.scripts.OnHide()
+		Resize(601, 665)
+		assert.is_true(finalNote:GetBottom() >= scroll:GetBottom())
+	end)
+
 	it("makes the final setting reachable at each short viewport height", function()
 		assert.is_not_nil(scroll)
 		for _, width in ipairs({ 320, 680, 960 }) do
@@ -208,7 +263,7 @@ describe("settings layout", function()
 		assert.is_not_nil(scroll)
 		Resize(310)
 		scroll:SetVerticalScroll(scroll:GetVerticalScrollRange())
-		Resize(2400)
+		Resize(3000)
 		assert.equal(0, scroll:GetVerticalScrollRange())
 		assert.equal(0, scroll:GetVerticalScroll())
 		assert.is_true(finalNote:GetBottom() >= scroll:GetBottom())
@@ -232,7 +287,10 @@ describe("settings layout", function()
 			previous = sections[title]
 		end
 		local expected = {
-			["Action bar"] = { 2, 3, 4, 5, 6, 7, 8 },
+			["Action bar"] = {
+				1, 2, 3, 4, 5, 6, 7, 8, "copySource1", "copySource2", "copySource3", "copySource4",
+				"copySource5", "copySource6", "copySource7", "copySource8", "Copy settings",
+			},
 			Activation = { "toggle", "hold", "hideCursor", "Not bound", "Clear" },
 			Placement = { "center", "cursor", "fixed", "Preview wheel" },
 			["Wheel layout"] = { "square", "circle", "slice", "count", "iconSize", "radius", "margin", "hubSize", "gap", "sliceIconZoom" },
@@ -345,6 +403,40 @@ describe("settings layout", function()
 		assert.equal(1, applied)
 	end)
 
+	it("copies from an explicit source to the edit target and refreshes controls and inline artwork in combat", function()
+		Resize(610)
+		_G.C_ActionBar.HasAction = function() return true end
+		local controls, copy, slot = {}, nil, nil
+		for _, region in ipairs(regions) do
+			local key = rawget(region, "key") or rawget(region, "value")
+			if key then controls[key] = region end
+			if geometry[region].text == "Copy settings" then copy = region end
+			if rawget(region, "sliceIcon") and not slot then slot = region end
+		end
+		local source = ns.GetBarConfig(8)
+		source.shape, source.radius, source.sliceIconZoom, source.key = "slice", 170, 1.8, "S"
+		ns.GetBarConfig(1).key = "D"
+		controls[1].scripts.OnClick()
+		controls.copySource1.scripts.OnClick()
+		assert.is_false(geometry[copy].enabled)
+		controls.copySource8.scripts.OnClick()
+		assert.is_true(geometry[copy].enabled)
+		wow.inCombat = true
+		local count = applied
+		copy.scripts.OnClick()
+		assert.equal(count, applied)
+		assert.equal(170, geometry[controls.radius].value)
+		assert.equal(1.8, geometry[controls.sliceIconZoom].value)
+		assert.is_true(geometry[controls.slice].checked)
+		assert.equal("ActionTexture1", slot.sliceIcon.calls.SetTexture[1])
+		assert.equal("D", ns.GetBarConfig(1).key)
+		assert.equal("S", source.key)
+		assert.equal(2, ns.GetBarConfig(2).gap)
+		wow.inCombat = false
+		wow.Fire("PLAYER_REGEN_ENABLED")
+		assert.equal(count + 1, applied)
+	end)
+
 	it("retains keyboard capture, Clear, and the floating preview lifecycle", function()
 		Resize(610, 320)
 		local key, clear, preview
@@ -359,9 +451,12 @@ describe("settings layout", function()
 		assert.is_true(geometry[key].keyboard)
 		key.scripts.OnKeyDown(key, "LSHIFT")
 		assert.is_nil(ns.GetBarConfig(2).key)
+		ns.GetBarConfig(8).key, ns.GetBarConfig(8).radius = "SHIFT-K", 225
 		_G.IsShiftKeyDown = function() return true end
 		key.scripts.OnKeyDown(key, "K")
 		assert.equal("SHIFT-K", ns.GetBarConfig(2).key)
+		assert.is_nil(ns.GetBarConfig(8).key)
+		assert.equal(225, ns.GetBarConfig(8).radius)
 		assert.is_false(geometry[key].keyboard)
 		assert.is_false(geometry[key].propagate)
 		key.scripts.OnClick()
