@@ -48,7 +48,9 @@ Settings are grouped into five sections:
     Switching wheels or cancelling invalidates the old held press: releasing
     it cannot use an action, even after reopening from a macro.
 - **Hide cursor in Hold mode:** hides the cursor while held; a pointer shows
-  the direction instead.
+  the direction instead. Hiding covers the whole viewport, including outside
+  the wheel, and ends when the wheel closes. Previews and Toggle mode keep
+  their normal cursor.
 
 **Placement**
 
@@ -138,7 +140,7 @@ npm run changelog:check
 | `Visuals.lua` | Shared icon geometry, native slice masks, read-only action labels |
 | `SettingsPreview.lua` | Unprotected, hover-only embedded settings wheel |
 | `Settings.lua` | Options page and key capture |
-| `Media/*.tga` | Textures: slices for 4-12 slots, inverse hub mask, pointer, blank cursor, addon-list icon |
+| `Media/*.tga`, `Media/Blank.blp` | Slice, hub, pointer and icon textures; transparent hardware cursor |
 | `art/` | Icon source art, CurseForge avatar, hub-mask generator (not packaged) |
 
 Slice artwork uses native `MaskTexture` objects: the existing wedge alpha
@@ -151,6 +153,7 @@ direction even beyond the rim.
 The mask APIs are documented in the
 [Forever 1.60.1 (70959) client source](https://github.com/Gethe/wow-ui-source/tree/3d8abb1da73acd38e412e24fb3f99454a6392346/Interface/AddOns/Blizzard_APIDocumentationGenerated).
 Regenerate the inverse hub asset with `python art/generate-hub-mask.py`.
+Regenerate the uncompressed hardware cursor with `python art/generate-blank-cursor.py`.
 Rendering-call and texture-alpha tests do not replace an in-game visual check.
 
 ### Manual acceptance
@@ -166,6 +169,10 @@ Forever, including:
 - Check Hold execution on release with both game key-down settings, cursor
   hiding/restoration, each positioning mode, and fixed bar 1 slots while
   changing stance, form, and action page.
+- With Hide cursor enabled in Hold mode, move inside and outside the wheel,
+  including viewport edges on ultrawide displays. Check no black square or
+  cursor appears, world clicks and camera buttons still work, and closing or
+  switching restores the appropriate cursor.
 - Clear or move a radial key; verify the original game binding returns.
   Reload legacy fixture settings and check key ownership and bar settings.
 - Edit and copy settings during combat; the inline preview updates immediately,

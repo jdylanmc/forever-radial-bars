@@ -22,7 +22,9 @@ local function NewObject(kind, parent)
 				self.calls[method] = { ... }
 				if M.enforceCombat and M.inCombat and M.secureDepth == 0 and rawget(self, "protected")
 					and (method == "SetAttribute" or method == "Show" or method == "Hide"
-						or method == "SetPoint" or method == "ClearAllPoints" or method == "SetSize") then
+						or method == "SetPoint" or method == "ClearAllPoints" or method == "SetSize"
+						or method == "SetAllPoints" or method == "EnableMouse" or method == "EnableMouseMotion"
+						or method == "SetPropagateMouseClicks") then
 					error("insecure protected mutation: " .. method)
 				end
 				if method == "SetAttribute" then
@@ -111,6 +113,10 @@ local function NewObject(kind, parent)
 					return self.shown and (not parent or parent:IsVisible())
 				elseif method == "IsMouseOver" then
 					return rawget(self, "mouseOver") == true
+				elseif method == "EnableMouse" then
+					self.mouseClicks, self.mouseMotion = ..., ...
+				elseif method == "EnableMouseMotion" then
+					self.mouseMotion = ...
 				elseif method == "AddMaskTexture" then
 					self.masks[(...)] = true
 				elseif method == "RemoveMaskTexture" then
@@ -121,6 +127,52 @@ local function NewObject(kind, parent)
 			end
 		end,
 	})
+end
+
+-- Models the documented hover/cursor boundary, not native input dispatch.
+local function ViewportMouseFrames()
+	local frames = {}
+	for _, frame in ipairs(M.frames) do
+		local points = frame.calls.SetAllPoints
+		if frame:IsVisible() and points and points[1] == UIParent then frames[#frames + 1] = frame end
+	end
+	return frames
+end
+
+function M.MoveCursor(area)
+	M.cursorArea, M.cursor, M.cursorHidden = area, nil, false
+end
+
+function M.WorldClick(button)
+	for _, frame in ipairs(ViewportMouseFrames()) do
+		local propagate = frame.calls.SetPropagateMouseClicks
+		if rawget(frame, "mouseClicks") and not (propagate and propagate[1]) then return end
+	end
+	M.worldClicks[#M.worldClicks + 1] = button
+end
+
+local function SetModelCursor(cursor)
+	if cursor == nil then
+		M.cursor, M.cursorHidden = nil, false
+		return true
+	end
+	if M.cursorArea == "world" then
+		local owned = false
+		for _, frame in ipairs(ViewportMouseFrames()) do
+			if rawget(frame, "mouseMotion") then owned = true end
+		end
+		if not owned then return false end
+	end
+	local path = cursor:gsub("^Interface\\AddOns\\RadialBars\\", "")
+	path = path:gsub("\\", package.config:sub(1, 1))
+	if not path:match("%.%w+$") then path = path .. ".blp" end
+	local file = io.open(path, "rb")
+	local header = file and file:read(12)
+	if file then file:close() end
+	-- Hardware cursors require an uncompressed BLP, not an ordinary TGA texture.
+	local supported = header and header:sub(1, 4) == "BLP2" and header:byte(9) == 3
+	M.cursor, M.cursorHidden = supported and cursor or "black-square", supported and true or false
+	return supported and true or false
 end
 
 function M.Run(body, frame, owner, down, ...)
@@ -191,6 +243,7 @@ function M.Reset()
 	M.enforceCombat, M.secureDepth = false, 0
 	M.bindings, M.baseBindings, M.actions, M.named, M.visibility = {}, {}, {}, {}, {}
 	M.mouseX, M.mouseY = 0.5, 0.5
+	M.cursorArea, M.cursorHidden, M.worldClicks = "wheel", false, {}
 
 	_G.RadialBarsDB = nil
 	_G.CreateFrame = function(kind, name, parent, template)
@@ -242,8 +295,11 @@ function M.Reset()
 	_G.IsAltKeyDown = function() return false end
 	_G.IsControlKeyDown = function() return false end
 	_G.IsShiftKeyDown = function() return false end
-	_G.SetCursor = function(cursor) M.cursor = cursor end
-	_G.ResetCursor = function() M.cursor = nil; M.cursorResets = (M.cursorResets or 0) + 1 end
+	_G.SetCursor = SetModelCursor
+	_G.ResetCursor = function()
+		M.cursor, M.cursorHidden = nil, false
+		M.cursorResets = (M.cursorResets or 0) + 1
+	end
 	M.cursor, M.cursorResets = nil, 0
 	_G.EMPTY = "Empty"
 	_G.CANCEL = "Cancel"

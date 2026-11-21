@@ -16,7 +16,7 @@ wheels and hotkeys; only one opens at a time. Bar 1 uses fixed action slots
 | `Visuals.lua` | Shared slot rendering and read-only action labels |
 | `SettingsPreview.lua` | Ordinary, action-free preview of the selected edit bar |
 | `Settings.lua` | Options page, Changelog subpage, key capture |
-| `Media/` | Textures (TGA, power-of-two, bottom-left origin) |
+| `Media/` | TGA textures and the transparent uncompressed BLP hardware cursor |
 | `spec/` | busted unit tests; `spec/helpers/wow.lua` stubs the client API |
 | `scripts/` | Node tooling: `build-changelog.mjs` and its tests |
 | `.changeset/` | Pending release notes |
@@ -45,6 +45,10 @@ wheels and hotkeys; only one opens at a time. Bar 1 uses fixed action slots
 - **Settings layout.** Measure wrapped text and row heights before sizing their
   sections. Zero-height sections may have no absolute rectangle; never require
   a descendant's absolute coordinates to determine its parent's height.
+- **Hold cursor.** Hardware cursors use uncompressed BLP, not TGA. The separate
+  viewport hover owner must remain click-through and enabled only for hidden
+  Hold cursors, never previews. Configure protected mouse properties out of
+  combat; do not resize the direction sensor to solve cursor ownership.
 - **Verify APIs** against the Forever UI source
   (`Gethe/wow-ui-source`, branch `forever`) before using them. Retail and
   Classic Era docs do not always apply.

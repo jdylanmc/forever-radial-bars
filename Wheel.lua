@@ -4,7 +4,7 @@ local CIRCLE_MASK = "Interface\\CharacterFrame\\TempPortraitAlphaMask"
 local SQUARE_SWIPE = "Interface\\Buttons\\WHITE8X8"
 local EMPTY_SLOT = "Interface\\Buttons\\UI-EmptySlot-Disabled"
 local WEDGE_PATH = "Interface\\AddOns\\RadialBars\\Media\\Wedge"
-local BLANK_CURSOR = "Interface\\AddOns\\RadialBars\\Media\\Blank"
+local BLANK_CURSOR = "Interface\\AddOns\\RadialBars\\Media\\Blank.blp"
 local POINTER = "Interface\\AddOns\\RadialBars\\Media\\Pointer"
 local SENSOR_SIZE = 4096
 local MIN_DEAD_ZONE = 12
@@ -80,6 +80,10 @@ sensor:SetSize(SENSOR_SIZE, SENSOR_SIZE)
 sensor:SetPoint("CENTER")
 SecureHandlerSetFrameRef(wheel, "sensor", sensor)
 wheel:SetAttribute("rb-sensor", SENSOR_SIZE)
+
+-- Hover ownership keeps WorldFrame from overriding the cursor outside the wheel.
+-- Motion only: do not intercept world clicks or camera buttons.
+local cursorOwner = CreateFrame("Frame", Name("CursorOwner"), wheel, "SecureFrameTemplate")
 
 local background = wheel:CreateTexture(nil, "BACKGROUND")
 background:SetPoint("CENTER")
@@ -303,6 +307,13 @@ end
 
 local cursorHidden = false
 
+local function HideCursor()
+	if wheel:GetAttribute("rb-mode") == "hold" and wheel.hideCursor and not Wheel:IsPreviewing() then
+		SetCursor(BLANK_CURSOR)
+		cursorHidden = true
+	end
+end
+
 wheel:SetScript("OnUpdate", function()
 	local hold = wheel:GetAttribute("rb-mode") == "hold"
 	local slice = wheel:GetAttribute("rb-shape") == "slice"
@@ -329,10 +340,7 @@ wheel:SetScript("OnUpdate", function()
 	end
 
 	-- The game restores its cursor as the mouse moves, so reapply each frame.
-	if hold and wheel.hideCursor and not Wheel:IsPreviewing() then
-		SetCursor(BLANK_CURSOR)
-		cursorHidden = true
-	end
+	HideCursor()
 end)
 
 -- Center "Cancel": clicking it closes the wheel. In Hold mode, releasing with
@@ -554,6 +562,10 @@ local function Layout(config)
 	description:SetWidth(centerWidth)
 	wheel.showDescription = config.showDescription and centerWidth >= MIN_DESCRIPTION_WIDTH
 	wheel.hideCursor = config.hideCursor
+	cursorOwner:SetAllPoints(UIParent)
+	cursorOwner:EnableMouse(false)
+	cursorOwner:SetPropagateMouseClicks(true)
+	cursorOwner:EnableMouseMotion(config.mode == "hold" and config.hideCursor and not previewing)
 end
 
 -- Out of combat only (see ns.ApplyWhenSafe).
@@ -620,6 +632,7 @@ end
 
 wheel:HookScript("OnShow", function()
 	Wheel:Refresh()
+	HideCursor()
 end)
 
 wheel:HookScript("OnHide", function()
